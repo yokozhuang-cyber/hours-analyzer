@@ -22,6 +22,20 @@ header{max-width:1100px;margin:0 auto 36px;border-bottom:1px solid var(--border)
 h1{font-family:'Syne',sans-serif;font-size:clamp(28px,4vw,46px);font-weight:800;letter-spacing:-1px;color:var(--accent);}
 h1 span{color:var(--text);}
 
+.tutorial{max-width:1100px;margin:0 auto 28px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.tutorial-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.tutorial-header:hover{background:#1a1a1a;}
+.tutorial-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.tutorial-toggle{font-size:11px;color:var(--muted);letter-spacing:1px;}
+.tutorial-body{padding:0 20px 20px;display:none;}
+.tutorial-body.open{display:block;}
+.steps{display:flex;flex-direction:column;gap:0;}
+.step{display:flex;gap:14px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #1e1e1e;}
+.step:last-child{border-bottom:none;}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#000;font-family:'Syne',sans-serif;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-text{font-size:12px;color:var(--text);line-height:1.6;}
+.step-text strong{color:var(--accent);}
+.step-text code{background:#1e1e1e;padding:1px 6px;border-radius:4px;font-size:11px;color:#a78bfa;}
 .status-bar{max-width:1100px;margin:0 auto 20px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:10px;}
 .status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;}
 .status-dot.ok{background:#44cc77;}
@@ -157,6 +171,28 @@ tr:last-child td{border-bottom:none;}
   <div class="subtitle">iSolved 考勤分析工具</div>
   <h1><span>Hours</span> Analyzer</h1>
 </header>
+
+<!-- Tutorial -->
+<div class="tutorial">
+  <div class="tutorial-header" onclick="toggleTutorial()">
+    <span class="tutorial-title">📋 如何导出 iSolved 文件</span>
+    <span class="tutorial-toggle" id="tutToggle">展开 ▾</span>
+  </div>
+  <div class="tutorial-body" id="tutBody">
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">登录 <strong>iSolved</strong></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">顶部导航点 <strong>Reporting</strong></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">点击 <strong>My Reports</strong></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">搜索框输入 <code>Hours Detail Export By Date Range</code>，点击该报告</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text">选择 <strong>Date Range</strong>（日期范围）</div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-text">选择对应的 <strong>Company</strong>（CA / NJ / GA / TX）</div></div>
+      <div class="step"><div class="step-num">7</div><div class="step-text">在 <strong>Employee Status</strong> 选择 <code>Active</code></div></div>
+      <div class="step"><div class="step-num">8</div><div class="step-text">Format 选择 <code>Excel</code></div></div>
+      <div class="step"><div class="step-num">9</div><div class="step-text">点击 <strong>Generate Report</strong></div></div>
+      <div class="step"><div class="step-num">10</div><div class="step-text">回到 <strong>My Report Queue</strong>，等报告生成后点 <strong>View Report</strong> 下载文件</div></div>
+    </div>
+  </div>
+</div>
 
 <!-- Employee list status -->
 <div class="status-bar">
@@ -652,6 +688,13 @@ function exportAll() {
 }
 
 // ── Init: load employee files on page load ────────────────────────────────
+function toggleTutorial() {
+  const body = document.getElementById('tutBody');
+  const toggle = document.getElementById('tutToggle');
+  const open = body.classList.toggle('open');
+  toggle.textContent = open ? '收起 ▴' : '展开 ▾';
+}
+
 loadEmployeeFiles();
 </script>
 </body>
