@@ -183,7 +183,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <header>
-  <div class="subtitle">iSolved 考勤分析工具 By Yoko</div>
+  <div class="subtitle">iSolved 考勤分析工具</div>
   <h1><span>Hours</span> Analyzer</h1>
 </header>
 
@@ -282,7 +282,7 @@ tr:last-child td{border-bottom:none;}
       <button class="exp-btn err" onclick="exportSection('error')">导出</button>
     </div>
     <div class="table-wrap">
-      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>问题</th><th>当日总工时</th><th>主管</th></tr></thead>
+      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>问题</th><th>当日总工时</th><th>Manager</th></tr></thead>
       <tbody id="tbErr"></tbody></table>
     </div>
   </div>
@@ -296,7 +296,7 @@ tr:last-child td{border-bottom:none;}
       <button class="exp-btn ot" onclick="exportSection('ot')">导出</button>
     </div>
     <div class="table-wrap">
-      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>主管</th></tr></thead>
+      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>Manager</th></tr></thead>
       <tbody id="tbOT"></tbody></table>
     </div>
   </div>
@@ -310,7 +310,7 @@ tr:last-child td{border-bottom:none;}
       <button class="exp-btn dt" onclick="exportSection('dt')">导出</button>
     </div>
     <div class="table-wrap">
-      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>DT Hours</th><th>主管</th></tr></thead>
+      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>DT Hours</th><th>Manager</th></tr></thead>
       <tbody id="tbDT"></tbody></table>
     </div>
   </div>
@@ -493,8 +493,8 @@ function fmtH(v) { return v!=null ? parseFloat(v).toFixed(2)+'h' : '—'; }
 let parsedData = { error:[], ot:[], dt:[] };
 
 function runAnalysis() {
-  // Filter salary employees
-  const rows = hoursRows.filter(r => !isSalary(r['Employee Number']));
+  // Keep ALL rows for error checking; salary excluded from OT/DT only
+  const rows = hoursRows;
 
   // Group by employee + date
   const grouped = {};
@@ -507,11 +507,12 @@ function runAnalysis() {
         firstName: r['Employee First Name'],
         lastName: r['Employee Last Name'],
         day: r['Day'], date: r['Date'],
-        supervisor: r['Employee Supervisor'] || '',
+        manager: r['Employee Manager'] || '',
         dept: info.dept,
         entity: info.entity,
+        salary: info.salary,
         total:0, reg:0, ot:0, dt:0,
-        issues:[]
+        recordCount:0, missingStart:false, missingEnd:false
       };
     }
     const g = grouped[key];
@@ -519,18 +520,27 @@ function runAnalysis() {
     g.reg   += parseFloat(r['Hourly']      || 0);
     g.ot    += parseFloat(r['Overtime']    || 0);
     g.dt    += parseFloat(r['Double Time'] || 0);
-    if (!r['Start'] || r['Start']===null) g.issues.push('缺少上班打卡');
-    if (!r['End']   || r['End']===null)   g.issues.push('缺少下班打卡');
+    g.recordCount++;
+    if (!r['Start'] || r['Start']===null) g.missingStart = true;
+    if (!r['End']   || r['End']===null)   g.missingEnd   = true;
   });
 
   parsedData = { error:[], ot:[], dt:[] };
   Object.values(grouped).forEach(g => {
-    // CA law recalc
+    // Build issue string
+    const issueList = [];
+    if (g.missingStart) issueList.push('缺少上班打卡');
+    if (g.missingEnd)   issueList.push('缺少下班打卡');
+    if (issueList.length > 0) parsedData.error.push({ ...g, _issue: issueList.join(' / ') });
+
+    // Salary employees: error check only, skip OT/DT
+    if (g.salary) return;
+
+    // CA law recalc for hourly
     const h = g.total;
     g.reg = Math.min(h, 8);
     g.ot  = h > 8  ? Math.min(h,12) - 8 : 0;
     g.dt  = h > 12 ? h - 12 : 0;
-    if (g.issues.length > 0) parsedData.error.push({ ...g, _issue:[...new Set(g.issues)].join(' / ') });
     if (g.dt > 0) parsedData.dt.push(g);
     else if (g.ot > 0) parsedData.ot.push(g);
   });
@@ -554,7 +564,7 @@ function runAnalysis() {
         <td>${fmtDate(r.date)}</td><td>${r.day}</td>
         <td><span class="badge miss">${r._issue}</span></td>
         <td class="hi-err">${fmtH(r.total)}</td>
-        <td>${r.supervisor}</td></tr>`).join('');
+        <td>${r.manager}</td></tr>`).join('');
 
   document.getElementById('tbOT').innerHTML = parsedData.ot.length === 0
     ? `<tr><td colspan="10" class="empty">无 Overtime 记录</td></tr>`
@@ -565,7 +575,7 @@ function runAnalysis() {
         <td>${fmtDate(r.date)}</td><td>${r.day}</td>
         <td>${fmtH(r.total)}</td><td>${fmtH(r.reg)}</td>
         <td class="hi-ot">${fmtH(r.ot)}</td>
-        <td>${r.supervisor}</td></tr>`).join('');
+        <td>${r.manager}</td></tr>`).join('');
 
   document.getElementById('tbDT').innerHTML = parsedData.dt.length === 0
     ? `<tr><td colspan="11" class="empty">无 Double Time 记录</td></tr>`
@@ -577,7 +587,7 @@ function runAnalysis() {
         <td>${fmtH(r.total)}</td><td>${fmtH(r.reg)}</td>
         <td class="hi-ot">${fmtH(r.ot)}</td>
         <td class="hi-dt">${fmtH(r.dt)}</td>
-        <td>${r.supervisor}</td></tr>`).join('');
+        <td>${r.manager}</td></tr>`).join('');
 
   document.getElementById('results').classList.add('show');
   document.getElementById('shareBtn').disabled = false;
@@ -762,7 +772,7 @@ function toRow(r) {
     'Regular':parseFloat((r.reg||0).toFixed(2)),
     'OT Hours':parseFloat((r.ot||0).toFixed(2)),
     'DT Hours':parseFloat((r.dt||0).toFixed(2)),
-    '主管':r.supervisor, '问题':r._issue||'' };
+    'Manager':r.manager, '问题':r._issue||'' };
 }
 function exportSection(type) {
   const data = parsedData[type];
