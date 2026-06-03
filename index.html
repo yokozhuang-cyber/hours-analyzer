@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>iSolved 考勤分析工具 Created By Yoko and Claude</title>
+<title>iSolved 考勤分析工具</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
@@ -148,6 +148,21 @@ tr:last-child td{border-bottom:none;}
   .print-date{display:block !important;font-size:12px;color:#666;margin-bottom:20px;}
   .print-summary{display:block !important;font-size:12px;color:#333;margin-bottom:24px;padding:12px;border:1px solid #ddd;border-radius:4px;}
 }
+
+  /* Share */
+  .share-bar{max-width:1100px;margin:0 auto 28px;background:#0a1220;border:1px solid var(--ot);border-radius:12px;padding:20px 24px;display:none;}
+  .share-bar.show{display:block;}
+  .share-bar-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--ot);margin-bottom:14px;}
+  .share-link-wrap{display:flex;gap:10px;align-items:center;}
+  .share-link-input{flex:1;background:#0e0e0f;border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;}
+  .share-link-input:focus{border-color:var(--ot);}
+  .share-copy-btn{font-family:'DM Mono',monospace;font-size:11px;padding:10px 16px;border-radius:6px;cursor:pointer;border:1px solid var(--ot);color:var(--ot);background:#0a1220;letter-spacing:1px;white-space:nowrap;transition:all .15s;}
+  .share-copy-btn:hover{background:#0f1e30;}
+  .share-copy-btn.copied{border-color:#44cc77;color:#44cc77;}
+  .share-generate-btn{display:block;width:100%;max-width:1100px;margin:0 auto 16px;padding:13px;background:transparent;color:var(--ot);border:1px solid var(--ot);border-radius:10px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+  .share-generate-btn:hover{background:#0a1220;}
+  .share-generate-btn:disabled{opacity:.3;cursor:not-allowed;}
+  .share-status{font-size:11px;color:var(--muted);margin-top:10px;}
 </style>
 </head>
 <body>
@@ -183,7 +198,7 @@ tr:last-child td{border-bottom:none;}
       <div class="step"><div class="step-num">1</div><div class="step-text">登录 <strong>iSolved</strong></div></div>
       <div class="step"><div class="step-num">2</div><div class="step-text">顶部导航点 <strong>Reporting</strong></div></div>
       <div class="step"><div class="step-num">3</div><div class="step-text">点击 <strong>My Reports</strong></div></div>
-      <div class="step"><div class="step-num">4</div><div class="step-text">搜索框输入 <code>Hours Detail Export 找到 By Date Range</code>，点击该报告</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">搜索框输入 <code>Hours Detail Export By Date Range</code>，点击该报告</div></div>
       <div class="step"><div class="step-num">5</div><div class="step-text">选择 <strong>Date Range</strong>（日期范围）</div></div>
       <div class="step"><div class="step-num">6</div><div class="step-text">选择对应的 <strong>Company</strong>（CA / NJ / GA / TX）</div></div>
       <div class="step"><div class="step-num">7</div><div class="step-text">在 <strong>Employee Status</strong> 选择 <code>Active</code></div></div>
@@ -235,6 +250,19 @@ tr:last-child td{border-bottom:none;}
       <div class="chart-card"><div class="chart-title">按部门 — 条状图</div><canvas id="barChart"></canvas></div>
       <div class="chart-card"><div class="chart-title">按部门 — 饼状图</div><canvas id="pieChart"></canvas></div>
     </div>
+  </div>
+
+
+  <button class="share-generate-btn" id="shareBtn" onclick="generateShareLink()" disabled>
+    🔗 生成分享链接
+  </button>
+  <div class="share-bar" id="shareBar">
+    <div class="share-bar-title">🔗 分享链接（只读）</div>
+    <div class="share-link-wrap">
+      <input class="share-link-input" id="shareLinkInput" readonly />
+      <button class="share-copy-btn" id="shareCopyBtn" onclick="copyShareLink()">复制链接</button>
+    </div>
+    <div class="share-status" id="shareStatus"></div>
   </div>
 
   <button class="export-all" onclick="exportAll()">⬇ 导出完整分析报告 (Excel)</button>
@@ -552,6 +580,7 @@ function runAnalysis() {
         <td>${r.supervisor}</td></tr>`).join('');
 
   document.getElementById('results').classList.add('show');
+  document.getElementById('shareBtn').disabled = false;
   renderCharts();
   buildPdfButtons();
   document.getElementById('results').scrollIntoView({ behavior:'smooth' });
@@ -658,6 +687,71 @@ function printAllDepts() {
   let i = 0;
   function next() { if (i>=depts.length) return; printDept(depts[i++]); setTimeout(next, 800); }
   next();
+}
+
+// ── Share via JSONBin ─────────────────────────────────────────────────────
+const JSONBIN_KEY = '$2a$10$/167sSdCN2HNTpvwANPiAOAtW2BLG95kixUBMuJJsjj2Gg8l7ScK2';
+const JSONBIN_API = 'https://api.jsonbin.io/v3/b';
+let currentBinId = null;
+
+async function generateShareLink() {
+  const btn = document.getElementById('shareBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中...';
+  document.getElementById('shareStatus').textContent = '正在上传数据...';
+
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    entity: selectedEntity,
+    summary: {
+      error: parsedData.error.length,
+      ot: parsedData.ot.length,
+      dt: parsedData.dt.length
+    },
+    error: parsedData.error.map(toRow),
+    ot:    parsedData.ot.map(toRow),
+    dt:    parsedData.dt.map(toRow)
+  };
+
+  try {
+    const resp = await fetch(JSONBIN_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Name': 'hours-report-' + new Date().toISOString().slice(0,10),
+        'X-Bin-Private': 'false'
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (!data.metadata?.id) throw new Error('No bin ID returned');
+    currentBinId = data.metadata.id;
+
+    // Build viewer URL — points to the GitHub Pages viewer
+    const viewerBase = window.location.origin + window.location.pathname.replace('index.html','');
+    const shareUrl = viewerBase + 'viewer.html?bin=' + currentBinId;
+
+    document.getElementById('shareLinkInput').value = shareUrl;
+    document.getElementById('shareBar').classList.add('show');
+    document.getElementById('shareStatus').textContent = '✓ 链接有效期永久，可直接发给主管';
+    btn.textContent = '🔗 重新生成';
+    btn.disabled = false;
+  } catch(e) {
+    document.getElementById('shareStatus').textContent = '❌ 生成失败: ' + e.message;
+    btn.textContent = '🔗 生成分享链接';
+    btn.disabled = false;
+  }
+}
+
+function copyShareLink() {
+  const input = document.getElementById('shareLinkInput');
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = document.getElementById('shareCopyBtn');
+    btn.textContent = '✓ 已复制';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '复制链接'; btn.classList.remove('copied'); }, 2000);
+  });
 }
 
 // ── Export ────────────────────────────────────────────────────────────────
