@@ -76,7 +76,7 @@ tr:last-child td{border-bottom:none;}
     <div class="section">
       <div class="sec-title" style="color:var(--err)">打卡异常</div>
       <div class="table-wrap">
-        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>问题</th><th>当日总工时</th><th>主管</th></tr></thead>
+        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>问题</th><th>当日总工时</th><th>Manager</th></tr></thead>
         <tbody id="tbErr"></tbody></table>
       </div>
     </div>
@@ -84,7 +84,7 @@ tr:last-child td{border-bottom:none;}
     <div class="section">
       <div class="sec-title" style="color:var(--ot)">Overtime</div>
       <div class="table-wrap">
-        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>主管</th></tr></thead>
+        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>Manager</th></tr></thead>
         <tbody id="tbOT"></tbody></table>
       </div>
     </div>
@@ -92,7 +92,7 @@ tr:last-child td{border-bottom:none;}
     <div class="section">
       <div class="sec-title" style="color:var(--dt)">Double Time</div>
       <div class="table-wrap">
-        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>DT Hours</th><th>主管</th></tr></thead>
+        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>DT Hours</th><th>Manager</th></tr></thead>
         <tbody id="tbDT"></tbody></table>
       </div>
     </div>
@@ -141,7 +141,7 @@ async function loadReport() {
           <td>${row['日期']}</td><td>${row['星期']}</td>
           <td><span class="badge miss">${row['问题']||''}</span></td>
           <td class="hi-err">${row['总工时']}h</td>
-          <td>${row['主管']||''}</td></tr>`).join('');
+          <td>${row['Manager']||''}</td></tr>`).join('');
 
     document.getElementById('tbOT').innerHTML = !(r.ot||[]).length
       ? `<tr><td colspan="10" class="empty">无 Overtime 记录</td></tr>`
@@ -151,7 +151,7 @@ async function loadReport() {
           <td>${row['日期']}</td><td>${row['星期']}</td>
           <td>${row['总工时']}h</td><td>${row['Regular']}h</td>
           <td class="hi-ot">${row['OT Hours']}h</td>
-          <td>${row['主管']||''}</td></tr>`).join('');
+          <td>${row['Manager']||''}</td></tr>`).join('');
 
     document.getElementById('tbDT').innerHTML = !(r.dt||[]).length
       ? `<tr><td colspan="11" class="empty">无 Double Time 记录</td></tr>`
@@ -162,7 +162,7 @@ async function loadReport() {
           <td>${row['总工时']}h</td><td>${row['Regular']}h</td>
           <td class="hi-ot">${row['OT Hours']}h</td>
           <td class="hi-dt">${row['DT Hours']}h</td>
-          <td>${row['主管']||''}</td></tr>`).join('');
+          <td>${row['Manager']||''}</td></tr>`).join('');
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('reportContent').style.display = 'block';
