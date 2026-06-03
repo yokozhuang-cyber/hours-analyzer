@@ -240,29 +240,30 @@ tr:last-child td{border-bottom:none;}
 <script>
 // ── 硬编码：部门映射（工号 → 部门）──────────────────────────────────────
 const DEPT_MAP = {
-  154:'Accounting', 119:'Accounting', 1:'Accounting', 220:'Accounting',
-  182:'Commerce',
-  40:'Dispatch', 190:'Dispatch', 77:'Dispatch', 58:'Dispatch', 46:'Dispatch',
-  15:'Dispatch', 209:'Dispatch', 121:'Dispatch', 210:'Dispatch', 213:'Dispatch',
-  189:'Dispatch', 22:'Dispatch', 198:'Dispatch',
-  195:'Executive', 217:'Executive', 127:'Executive',
-  18:'HR', 105:'HR', 66:'HR', 223:'HR', 133:'HR',
-  129:'QC', 183:'QC',
-  16:'Resource', 177:'Resource', 208:'Resource', 141:'Resource', 221:'Resource',
-  193:'Shipping', 4:'Shipping', 160:'Shipping', 38:'Shipping', 207:'Shipping',
-  122:'Shipping', 200:'Shipping', 165:'Shipping', 147:'Shipping', 196:'Shipping',
-  112:'Shipping', 65:'Shipping', 204:'Shipping', 84:'Shipping', 3:'Shipping',
-  174:'Transfer', 60:'Transfer', 5:'Transfer', 176:'Transfer', 151:'Transfer',
-  166:'Transfer', 21:'Transfer', 205:'Transfer', 187:'Transfer',
-  224:'Unloading', 222:'Unloading', 191:'Unloading', 215:'Unloading', 2:'Unloading',
-  7:'Unloading', 168:'Unloading', 56:'Unloading', 169:'Unloading', 212:'Unloading',
-  48:'Unloading', 218:'Unloading', 41:'Unloading', 170:'Unloading', 199:'Unloading',
-  214:'Unloading', 9:'Unloading'
+  1:'Receiving', 2:'Unloading', 3:'Shipping', 4:'Shipping', 5:'Transfer',
+  7:'Unloading', 9:'Resource', 15:'Dispatch', 16:'Resource', 18:'HR',
+  19:'Drop-Shipp', 21:'Transfer', 22:'Dispatch', 25:'Shipping', 26:'Shipping',
+  27:'Shipping', 29:'Transfer', 30:'Transfer', 38:'Shipping', 40:'Dispatch',
+  41:'Unloading', 46:'Dispatch', 48:'Unloading', 56:'Unloading', 58:'Dispatch',
+  60:'Transfer', 65:'Shipping', 66:'HR', 77:'Dispatch', 84:'Shipping',
+  105:'HR', 112:'Shipping', 119:'Accounting', 121:'Dispatch', 122:'Shipping',
+  127:'Executive', 129:'QC', 133:'HR', 141:'Resource', 147:'Shipping',
+  151:'Transfer', 154:'Accounting', 160:'Shipping', 165:'Shipping', 166:'Transfer',
+  168:'Unloading', 169:'Unloading', 170:'Unloading', 174:'Transfer', 176:'Transfer',
+  177:'Resource', 182:'Commerce', 183:'QC', 187:'Transfer', 189:'Dispatch',
+  190:'Dispatch', 191:'Unloading', 193:'Shipping', 195:'Executive', 196:'Shipping',
+  198:'Dispatch', 199:'Unloading', 200:'Shipping', 204:'Shipping', 205:'Transfer',
+  207:'Shipping', 208:'Commerce', 209:'Dispatch', 210:'Dispatch', 212:'Unloading',
+  213:'Dispatch', 214:'Unloading', 215:'Unloading', 217:'Executive', 218:'Unloading',
+  220:'Accounting', 221:'Resource', 222:'Unloading', 223:'HR', 224:'Unloading',
+  1008:'Drop-Shipp', 1012:'Drop-Shipp', 1013:'Drop-Shipp', 1017:'Drop-Shipp',
+  1027:'Drop-Shipp', 1028:'Drop-Shipp', 1037:'Drop-Shipp', 1040:'Drop-Shipp',
+  1041:'Drop-Shipp', 1043:'Drop-Shipp', 1044:'Drop-Shipp'
 };
 
 // ── 硬编码：月薪员工工号（自动排除）────────────────────────────────────
 const SALARY_IDS = new Set([
-  119,1,77,58,15,189,195,217,127,18,105,66,129,16,177,160,56
+  9,15,16,18,27,56,58,66,77,105,119,127,129,160,177,189,195,217,1017,1044
 ]);
 
 // ── Chart colors ─────────────────────────────────────────────────────────
