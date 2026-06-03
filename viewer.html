@@ -51,12 +51,22 @@ tr:last-child td{border-bottom:none;}
 .badge.miss{background:#3a0a0a;color:var(--err);}
 .empty{text-align:center;padding:32px;color:var(--muted);font-size:12px;}
 .error-msg{text-align:center;padding:80px 0;color:var(--err);}
+  /* Charts */
+  .chart-section{margin-bottom:36px;}
+  .metric-bar{display:flex;gap:8px;margin-bottom:20px;align-items:center;flex-wrap:wrap;}
+  .metric-bar span{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+  .m-btn{font-family:'DM Mono',monospace;font-size:11px;padding:6px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:1px;transition:all .15s;}
+  .m-btn.active{border-color:var(--accent);color:var(--accent);background:#111a00;}
+  .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;}
+  .chart-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="subtitle">LinkW Logistics — 考勤分析报告</div>
+    <div class="subtitle">LinkW Logistics USA Inc — 考勤分析报告</div>
     <h1><span>Hours</span> Report <span class="readonly-badge">只读</span></h1>
     <div class="meta" id="metaInfo">加载中...</div>
   </header>
@@ -71,6 +81,21 @@ tr:last-child td{border-bottom:none;}
       <div class="stat-card err"><div class="stat-label">⚠ 打卡异常</div><div class="stat-value" id="sErr">0</div></div>
       <div class="stat-card ot"><div class="stat-label">○ Overtime</div><div class="stat-value" id="sOT">0</div></div>
       <div class="stat-card dt"><div class="stat-label">◎ Double Time</div><div class="stat-value" id="sDT">0</div></div>
+    </div>
+
+
+    <!-- Charts -->
+    <div class="chart-section">
+      <div class="metric-bar">
+        <span>指标:</span>
+        <button class="m-btn active" onclick="switchMetric('ot',this)">OT Hours</button>
+        <button class="m-btn" onclick="switchMetric('dt',this)">Double Time</button>
+        <button class="m-btn" onclick="switchMetric('total',this)">总工时</button>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-title">按部门 — 条状图</div><canvas id="barChart"></canvas></div>
+        <div class="chart-card"><div class="chart-title">按部门 — 饼状图</div><canvas id="pieChart"></canvas></div>
+      </div>
     </div>
 
     <div class="section">
@@ -108,6 +133,64 @@ const JSONBIN_KEY = '$2a$10$/167sSdCN2HNTpvwANPiAOAtW2BLG95kixUBMuJJsjj2Gg8l7ScK
 
 function dp(s){return `<span class="dept-pill">${s}</span>`;}
 function ep(s){return `<span class="entity-pill">${s}</span>`;}
+
+
+// ── Charts ────────────────────────────────────────────────────────────────
+const COLORS = ['#e8ff47','#47c8ff','#ff6b35','#ff9900','#44cc77','#c47aff',
+                '#ff4444','#00e5ff','#ffcc00','#7affb2','#ff7eb3','#a8ff78'];
+let barInst=null, pieInst=null, currentMetric='ot';
+let reportData = null;
+
+function switchMetric(m, btn) {
+  currentMetric = m;
+  document.querySelectorAll('.m-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCharts();
+}
+
+function buildChartData() {
+  const all = [...(reportData.error||[]), ...(reportData.ot||[]), ...(reportData.dt||[])];
+  const map = {};
+  all.forEach(r => {
+    const d = r['부門'] || r['部门'] || '(未知)';
+    if (!map[d]) map[d] = { ot:0, dt:0, total:0 };
+    map[d].ot    += parseFloat(r['OT Hours'] || 0);
+    map[d].dt    += parseFloat(r['DT Hours'] || 0);
+    map[d].total += parseFloat(r['总工时']   || 0);
+  });
+  const labels = Object.keys(map).sort();
+  const values = labels.map(l => parseFloat((map[l][currentMetric]||0).toFixed(2)));
+  return { labels, values };
+}
+
+function renderCharts() {
+  const { labels, values } = buildChartData();
+  const colors = labels.map((_,i) => COLORS[i % COLORS.length]);
+  const metricLabel = currentMetric==='ot'?'OT Hours':currentMetric==='dt'?'DT Hours':'总工时';
+  const baseFont = { family:'DM Mono, monospace', size:11 };
+  Chart.defaults.color = '#666';
+
+  if (barInst) barInst.destroy();
+  barInst = new Chart(document.getElementById('barChart'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:metricLabel, data:values, backgroundColor:colors, borderRadius:4, borderSkipped:false }] },
+    options:{ responsive:true,
+      plugins:{ legend:{ display:false },
+        tooltip:{ callbacks:{ label: c=>` ${c.parsed.y.toFixed(2)}h` }, bodyFont:baseFont, titleFont:baseFont, backgroundColor:'#1a1a1a', borderColor:'#333', borderWidth:1 }},
+      scales:{ x:{ grid:{ color:'#1e1e1e' }, ticks:{ font:baseFont } }, y:{ grid:{ color:'#1e1e1e' }, ticks:{ font:baseFont, callback:v=>v+'h' }}}
+    }
+  });
+
+  if (pieInst) pieInst.destroy();
+  pieInst = new Chart(document.getElementById('pieChart'), {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderColor:'#0e0e0f', borderWidth:2, hoverOffset:8 }] },
+    options:{ responsive:true, cutout:'55%',
+      plugins:{ legend:{ position:'bottom', labels:{ font:baseFont, color:'#999', boxWidth:10, padding:14 }},
+        tooltip:{ callbacks:{ label: c=>` ${c.label}: ${c.parsed.toFixed(2)}h` }, bodyFont:baseFont, titleFont:baseFont, backgroundColor:'#1a1a1a', borderColor:'#333', borderWidth:1 }}
+    }
+  });
+}
 
 async function loadReport() {
   const params = new URLSearchParams(window.location.search);
@@ -164,8 +247,10 @@ async function loadReport() {
           <td class="hi-dt">${row['DT Hours']}h</td>
           <td>${row['Manager']||''}</td></tr>`).join('');
 
+    reportData = r;
     document.getElementById('loading').style.display = 'none';
     document.getElementById('reportContent').style.display = 'block';
+    renderCharts();
   } catch(e) {
     showError();
   }
