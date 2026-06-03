@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>考勤分析报告</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+:root{--bg:#0e0e0f;--surface:#161618;--border:#2a2a2e;--accent:#e8ff47;--text:#f0f0f0;--muted:#666;--err-bg:#1a0a0a;--err:#ff4444;--ot-bg:#0a1220;--ot:#47c8ff;--dt-bg:#1a0f00;--dt:#ff9900;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;padding:40px 24px;}
+.wrap{max-width:1100px;margin:0 auto;}
+header{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:32px;}
+.subtitle{font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+h1{font-family:'Syne',sans-serif;font-size:clamp(24px,4vw,42px);font-weight:800;letter-spacing:-1px;color:var(--accent);}
+h1 span{color:var(--text);}
+.meta{font-size:11px;color:var(--muted);margin-top:8px;}
+.readonly-badge{display:inline-block;font-size:10px;padding:3px 10px;border-radius:99px;border:1px solid var(--border);color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-left:12px;}
+
+.loading{text-align:center;padding:80px 0;color:var(--muted);}
+.loading-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.2;}}
+
+.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;}
+.stat-card.err{border-color:var(--err);background:var(--err-bg);}
+.stat-card.ot{border-color:var(--ot);background:var(--ot-bg);}
+.stat-card.dt{border-color:var(--dt);background:var(--dt-bg);}
+.stat-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.stat-value{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;line-height:1;}
+.stat-card.err .stat-value{color:var(--err);}
+.stat-card.ot .stat-value{color:var(--ot);}
+.stat-card.dt .stat-value{color:var(--dt);}
+
+.section{margin-bottom:32px;}
+.sec-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{background:var(--surface);color:var(--muted);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:10px 14px;border-bottom:1px solid #1c1c1e;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.err-row td{background:var(--err-bg);}
+.ot-row td{background:var(--ot-bg);}
+.dt-row td{background:var(--dt-bg);}
+.hi-ot{color:var(--ot);font-weight:500;}
+.hi-dt{color:var(--dt);font-weight:500;}
+.hi-err{color:var(--err);font-weight:500;}
+.dept-pill{font-size:10px;padding:2px 8px;border-radius:4px;background:#1e1e28;color:#a78bfa;border:1px solid #3a3a5a;}
+.entity-pill{font-size:10px;padding:2px 8px;border-radius:4px;background:#1a1a0a;color:var(--accent);border:1px solid #3a3a1a;}
+.badge{font-size:10px;padding:2px 8px;border-radius:4px;}
+.badge.miss{background:#3a0a0a;color:var(--err);}
+.empty{text-align:center;padding:32px;color:var(--muted);font-size:12px;}
+.error-msg{text-align:center;padding:80px 0;color:var(--err);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="subtitle">LinkW Logistics — 考勤分析报告</div>
+    <h1><span>Hours</span> Report <span class="readonly-badge">只读</span></h1>
+    <div class="meta" id="metaInfo">加载中...</div>
+  </header>
+
+  <div class="loading" id="loading">
+    <div class="loading-dot"></div>
+    <div style="margin-top:16px;font-size:12px;">正在加载报告...</div>
+  </div>
+
+  <div id="reportContent" style="display:none;">
+    <div class="stats-bar">
+      <div class="stat-card err"><div class="stat-label">⚠ 打卡异常</div><div class="stat-value" id="sErr">0</div></div>
+      <div class="stat-card ot"><div class="stat-label">○ Overtime</div><div class="stat-value" id="sOT">0</div></div>
+      <div class="stat-card dt"><div class="stat-label">◎ Double Time</div><div class="stat-value" id="sDT">0</div></div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title" style="color:var(--err)">打卡异常</div>
+      <div class="table-wrap">
+        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>问题</th><th>当日总工时</th><th>主管</th></tr></thead>
+        <tbody id="tbErr"></tbody></table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title" style="color:var(--ot)">Overtime</div>
+      <div class="table-wrap">
+        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>主管</th></tr></thead>
+        <tbody id="tbOT"></tbody></table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title" style="color:var(--dt)">Double Time</div>
+      <div class="table-wrap">
+        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>DT Hours</th><th>主管</th></tr></thead>
+        <tbody id="tbDT"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg" style="display:none;">
+    ❌ 报告加载失败，链接可能已失效
+  </div>
+</div>
+
+<script>
+const JSONBIN_KEY = '$2a$10$/167sSdCN2HNTpvwANPiAOAtW2BLG95kixUBMuJJsjj2Gg8l7ScK2';
+
+function dp(s){return `<span class="dept-pill">${s}</span>`;}
+function ep(s){return `<span class="entity-pill">${s}</span>`;}
+
+async function loadReport() {
+  const params = new URLSearchParams(window.location.search);
+  const binId = params.get('bin');
+  if (!binId) { showError(); return; }
+
+  try {
+    const resp = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_KEY }
+    });
+    if (!resp.ok) throw new Error('Fetch failed');
+    const data = await resp.json();
+    const r = data.record;
+
+    // Meta
+    const d = new Date(r.generatedAt);
+    document.getElementById('metaInfo').textContent =
+      `生成时间: ${d.toLocaleString('zh-CN')}  |  Entity: ${r.entity||'—'}  |  共 ${(r.error||[]).length + (r.ot||[]).length + (r.dt||[]).length} 条记录`;
+
+    // Stats
+    document.getElementById('sErr').textContent = (r.error||[]).length;
+    document.getElementById('sOT').textContent  = (r.ot||[]).length;
+    document.getElementById('sDT').textContent  = (r.dt||[]).length;
+
+    // Tables
+    document.getElementById('tbErr').innerHTML = !(r.error||[]).length
+      ? `<tr><td colspan="9" class="empty">✓ 无打卡异常</td></tr>`
+      : r.error.map(row => `<tr class="err-row">
+          <td>${row['工号']}</td><td>${row['姓名']}</td>
+          <td>${ep(row['Entity']||'')}</td><td>${dp(row['部门']||'')}</td>
+          <td>${row['日期']}</td><td>${row['星期']}</td>
+          <td><span class="badge miss">${row['问题']||''}</span></td>
+          <td class="hi-err">${row['总工时']}h</td>
+          <td>${row['主管']||''}</td></tr>`).join('');
+
+    document.getElementById('tbOT').innerHTML = !(r.ot||[]).length
+      ? `<tr><td colspan="10" class="empty">无 Overtime 记录</td></tr>`
+      : r.ot.map(row => `<tr class="ot-row">
+          <td>${row['工号']}</td><td>${row['姓名']}</td>
+          <td>${ep(row['Entity']||'')}</td><td>${dp(row['部门']||'')}</td>
+          <td>${row['日期']}</td><td>${row['星期']}</td>
+          <td>${row['总工时']}h</td><td>${row['Regular']}h</td>
+          <td class="hi-ot">${row['OT Hours']}h</td>
+          <td>${row['主管']||''}</td></tr>`).join('');
+
+    document.getElementById('tbDT').innerHTML = !(r.dt||[]).length
+      ? `<tr><td colspan="11" class="empty">无 Double Time 记录</td></tr>`
+      : r.dt.map(row => `<tr class="dt-row">
+          <td>${row['工号']}</td><td>${row['姓名']}</td>
+          <td>${ep(row['Entity']||'')}</td><td>${dp(row['部门']||'')}</td>
+          <td>${row['日期']}</td><td>${row['星期']}</td>
+          <td>${row['总工时']}h</td><td>${row['Regular']}h</td>
+          <td class="hi-ot">${row['OT Hours']}h</td>
+          <td class="hi-dt">${row['DT Hours']}h</td>
+          <td>${row['主管']||''}</td></tr>`).join('');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('reportContent').style.display = 'block';
+  } catch(e) {
+    showError();
+  }
+}
+
+function showError() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('errorMsg').style.display = 'block';
+}
+
+loadReport();
+</script>
+</body>
+</html>
