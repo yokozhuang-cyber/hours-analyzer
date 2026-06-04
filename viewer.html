@@ -60,13 +60,29 @@ tr:last-child td{border-bottom:none;}
   .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;}
   .chart-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+
+  /* Filters */
+  .filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:28px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;}
+  .filter-group{display:flex;flex-direction:column;gap:6px;min-width:160px;flex:1;}
+  .filter-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+  .filter-select{background:#0e0e0f;border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+  .filter-select:focus{border-color:var(--accent);}
+  .filter-reset{font-family:'DM Mono',monospace;font-size:11px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:1px;text-transform:uppercase;transition:all .15s;white-space:nowrap;align-self:flex-end;}
+  .filter-reset:hover{border-color:var(--accent);color:var(--accent);}
+  .filter-count{font-size:11px;color:var(--muted);align-self:flex-end;padding-bottom:9px;white-space:nowrap;}
+  .sort-btn{font-family:'DM Mono',monospace;font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:1px;transition:all .15s;display:inline-flex;align-items:center;gap:4px;}
+  .sort-btn:hover,.sort-btn.active{border-color:var(--accent);color:var(--accent);}
+  th.sortable{cursor:pointer;user-select:none;}
+  th.sortable:hover{color:var(--accent);}
+  th.sort-asc::after{content:' ▴';color:var(--accent);}
+  th.sort-desc::after{content:' ▾';color:var(--accent);}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="subtitle">LinkW Logistics USA Inc — 考勤分析报告</div>
+    <div class="subtitle">LinkW Logistics — 考勤分析报告</div>
     <h1><span>Hours</span> Report <span class="readonly-badge">只读</span></h1>
     <div class="meta" id="metaInfo">加载中...</div>
   </header>
@@ -83,6 +99,34 @@ tr:last-child td{border-bottom:none;}
       <div class="stat-card dt"><div class="stat-label">◎ Double Time</div><div class="stat-value" id="sDT">0</div></div>
     </div>
 
+
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">部门</span>
+        <select class="filter-select" id="filterDept" onchange="applyFilters()">
+          <option value="">全部部门</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">Manager</span>
+        <select class="filter-select" id="filterManager" onchange="applyFilters()">
+          <option value="">全部 Manager</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <span class="filter-label">类型</span>
+        <select class="filter-select" id="filterType" onchange="applyFilters()">
+          <option value="">全部类型</option>
+          <option value="error">打卡异常</option>
+          <option value="ot">Overtime</option>
+          <option value="dt">Double Time</option>
+        </select>
+      </div>
+      <button class="filter-reset" onclick="resetFilters()">✕ 重置</button>
+      <div class="filter-count" id="filterCount"></div>
+    </div>
 
     <!-- Charts -->
     <div class="chart-section">
@@ -101,7 +145,7 @@ tr:last-child td{border-bottom:none;}
     <div class="section">
       <div class="sec-title" style="color:var(--err)">打卡异常</div>
       <div class="table-wrap">
-        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>问题</th><th>当日总工时</th><th>Manager</th></tr></thead>
+        <table><thead><tr><th class="sortable" onclick="sortTable('tbErr',0,this)">工号</th><th class="sortable" onclick="sortTable('tbErr',1,this)">姓名</th><th>Entity</th><th class="sortable" onclick="sortTable('tbErr',3,this)">部门</th><th class="sortable" onclick="sortTable('tbErr',4,this)">日期</th><th>星期</th><th>问题</th><th class="sortable" onclick="sortTable('tbErr',7,this)">当日总工时</th><th class="sortable" onclick="sortTable('tbErr',8,this)">Manager</th></tr></thead>
         <tbody id="tbErr"></tbody></table>
       </div>
     </div>
@@ -109,7 +153,7 @@ tr:last-child td{border-bottom:none;}
     <div class="section">
       <div class="sec-title" style="color:var(--ot)">Overtime</div>
       <div class="table-wrap">
-        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>Manager</th></tr></thead>
+        <table><thead><tr><th class="sortable" onclick="sortTable('tbOT',0,this)">工号</th><th class="sortable" onclick="sortTable('tbOT',1,this)">姓名</th><th>Entity</th><th class="sortable" onclick="sortTable('tbOT',3,this)">部门</th><th class="sortable" onclick="sortTable('tbOT',4,this)">日期</th><th>星期</th><th class="sortable" onclick="sortTable('tbOT',6,this)">总工时</th><th>Regular</th><th class="sortable" onclick="sortTable('tbOT',8,this)">OT Hours</th><th class="sortable" onclick="sortTable('tbOT',9,this)">Manager</th></tr></thead>
         <tbody id="tbOT"></tbody></table>
       </div>
     </div>
@@ -117,7 +161,7 @@ tr:last-child td{border-bottom:none;}
     <div class="section">
       <div class="sec-title" style="color:var(--dt)">Double Time</div>
       <div class="table-wrap">
-        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>DT Hours</th><th>Manager</th></tr></thead>
+        <table><thead><tr><th class="sortable" onclick="sortTable('tbDT',0,this)">工号</th><th class="sortable" onclick="sortTable('tbDT',1,this)">姓名</th><th>Entity</th><th class="sortable" onclick="sortTable('tbDT',3,this)">部门</th><th class="sortable" onclick="sortTable('tbDT',4,this)">日期</th><th>星期</th><th class="sortable" onclick="sortTable('tbDT',6,this)">总工时</th><th>Regular</th><th class="sortable" onclick="sortTable('tbDT',8,this)">OT Hours</th><th class="sortable" onclick="sortTable('tbDT',9,this)">DT Hours</th><th class="sortable" onclick="sortTable('tbDT',10,this)">Manager</th></tr></thead>
         <tbody id="tbDT"></tbody></table>
       </div>
     </div>
@@ -192,6 +236,92 @@ function renderCharts() {
   });
 }
 
+
+// ── Filter & Sort ─────────────────────────────────────────────────────────
+let sortState = { table: null, col: null, dir: 'asc' };
+
+function populateFilters(r) {
+  const depts    = [...new Set([...(r.error||[]),...(r.ot||[]),...(r.dt||[])].map(x=>x['部门']).filter(Boolean))].sort();
+  const managers = [...new Set([...(r.error||[]),...(r.ot||[]),...(r.dt||[])].map(x=>x['Manager']).filter(Boolean))].sort();
+
+  const dSel = document.getElementById('filterDept');
+  depts.forEach(d => { const o=document.createElement('option'); o.value=d; o.textContent=d; dSel.appendChild(o); });
+
+  const mSel = document.getElementById('filterManager');
+  managers.forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=m; mSel.appendChild(o); });
+}
+
+function applyFilters() {
+  const dept    = document.getElementById('filterDept').value;
+  const manager = document.getElementById('filterManager').value;
+  const type    = document.getElementById('filterType').value;
+
+  let visible = 0;
+  ['tbErr','tbOT','tbDT'].forEach((tbId, idx) => {
+    const typeKey = ['error','ot','dt'][idx];
+    const section = document.getElementById(tbId).closest('.section');
+    // Show/hide entire section based on type filter
+    if (type && type !== typeKey) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+
+    const rows = document.querySelectorAll(`#${tbId} tr:not(.empty-row)`);
+    rows.forEach(tr => {
+      if (tr.querySelector('.empty')) return;
+      const pills = tr.querySelectorAll('.dept-pill, .entity-pill');
+      const deptPill = tr.querySelector('.dept-pill');
+      const rowDept = deptPill ? deptPill.textContent : '';
+      // Manager is last td
+      const tds = tr.querySelectorAll('td');
+      const rowManager = tds.length ? tds[tds.length-1].textContent : '';
+      const show = (!dept || rowDept===dept) && (!manager || rowManager===manager);
+      tr.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+  });
+
+  document.getElementById('filterCount').textContent = `显示 ${visible} 条记录`;
+}
+
+function resetFilters() {
+  document.getElementById('filterDept').value = '';
+  document.getElementById('filterManager').value = '';
+  document.getElementById('filterType').value = '';
+  document.querySelectorAll('#tbErr tr, #tbOT tr, #tbDT tr').forEach(tr => tr.style.display = '');
+  document.querySelectorAll('.section').forEach(s => s.style.display = '');
+  document.getElementById('filterCount').textContent = '';
+}
+
+function sortTable(tbId, colIdx, thEl) {
+  const key = tbId + '_' + colIdx;
+  if (sortState.table === key) {
+    sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortState.table = key;
+    sortState.dir = 'asc';
+  }
+
+  // Reset all th sort classes in this table
+  thEl.closest('thead').querySelectorAll('th').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+  });
+  thEl.classList.add(sortState.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+
+  const tbody = document.getElementById(tbId);
+  const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.querySelector('.empty'));
+  rows.sort((a, b) => {
+    const aVal = a.querySelectorAll('td')[colIdx]?.textContent.trim() || '';
+    const bVal = b.querySelectorAll('td')[colIdx]?.textContent.trim() || '';
+    const aNum = parseFloat(aVal);
+    const bNum = parseFloat(bVal);
+    if (!isNaN(aNum) && !isNaN(bNum)) return sortState.dir==='asc' ? aNum-bNum : bNum-aNum;
+    return sortState.dir==='asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
+
 async function loadReport() {
   const params = new URLSearchParams(window.location.search);
   const binId = params.get('bin');
@@ -250,6 +380,7 @@ async function loadReport() {
     reportData = r;
     document.getElementById('loading').style.display = 'none';
     document.getElementById('reportContent').style.display = 'block';
+    populateFilters(r);
     renderCharts();
   } catch(e) {
     showError();
