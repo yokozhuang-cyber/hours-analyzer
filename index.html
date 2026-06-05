@@ -527,10 +527,20 @@ function runAnalysis() {
 
   parsedData = { error:[], ot:[], dt:[] };
   Object.values(grouped).forEach(g => {
-    // Build issue string
+    // Check record count: Hourly should have exactly 2, Salary exactly 1
+    const expectedRecords = g.salary ? 1 : 2;
     const issueList = [];
+
+    // Always check missing punches regardless of record count
     if (g.missingStart) issueList.push('缺少上班打卡');
     if (g.missingEnd)   issueList.push('缺少下班打卡');
+    // Check record count
+    if (g.recordCount < expectedRecords) {
+      issueList.push(`打卡不足（应${expectedRecords}条，实际${g.recordCount}条）`);
+    } else if (g.recordCount > expectedRecords) {
+      issueList.push(`打卡异常（应${expectedRecords}条，实际${g.recordCount}条）`);
+    }
+
     if (issueList.length > 0) parsedData.error.push({ ...g, _issue: issueList.join(' / ') });
 
     // Salary employees: error check only, skip OT/DT
