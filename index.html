@@ -514,7 +514,7 @@ function runAnalysis() {
         entity: info.entity,
         salary: info.salary,
         total:0, reg:0, ot:0, dt:0,
-        recordCount:0, missingStart:false, missingEnd:false
+        recordCount:0, missingStart:false, missingEnd:false, overnight:false
       };
     }
     const g = grouped[key];
@@ -525,6 +525,12 @@ function runAnalysis() {
     g.recordCount++;
     if (!r['Start'] || r['Start']===null) g.missingStart = true;
     if (!r['End']   || r['End']===null)   g.missingEnd   = true;
+    // Detect overnight: End date > Start date = likely missed clock-out
+    if (r['Start'] && r['End']) {
+      const startDay = Math.floor(r['Start']);
+      const endDay   = Math.floor(r['End']);
+      if (endDay > startDay) g.overnight = true;
+    }
   });
 
   parsedData = { error:[], ot:[], dt:[] };
@@ -536,6 +542,7 @@ function runAnalysis() {
     // Always check missing punches regardless of record count
     if (g.missingStart) issueList.push('缺少上班打卡');
     if (g.missingEnd)   issueList.push('缺少下班打卡');
+    if (g.overnight)    issueList.push('疑似漏打下班卡（跨夜）');
     // Check record count
     if (g.recordCount < expectedRecords) {
       issueList.push(`打卡不足（应${expectedRecords}条，实际${g.recordCount}条）`);
