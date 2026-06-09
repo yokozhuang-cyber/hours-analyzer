@@ -514,17 +514,19 @@ function runAnalysis() {
         entity: info.entity,
         salary: info.salary,
         total:0, reg:0, ot:0, dt:0,
-        recordCount:0, missingStart:false, missingEnd:false
+        recordCount:0, missingStart:false, missingEnd:false, shortRecord:false
       };
     }
     const g = grouped[key];
-    g.total += parseFloat(r['Hours']       || 0);
+    const recHours = parseFloat(r['Hours'] || 0);
+    g.total += recHours;
     g.reg   += parseFloat(r['Hourly']      || 0);
     g.ot    += parseFloat(r['Overtime']    || 0);
     g.dt    += parseFloat(r['Double Time'] || 0);
     g.recordCount++;
     if (!r['Start'] || r['Start']===null) g.missingStart = true;
     if (!r['End']   || r['End']===null)   g.missingEnd   = true;
+    if (recHours < 1 && r['Start'] && r['End']) g.shortRecord = true;
   });
 
   parsedData = { error:[], ot:[], dt:[] };
@@ -536,6 +538,7 @@ function runAnalysis() {
     // Always check missing punches regardless of record count
     if (g.missingStart) issueList.push('缺少上班打卡');
     if (g.missingEnd)   issueList.push('缺少下班打卡');
+    if (g.shortRecord)  issueList.push('疑似漏打上班卡（单段不足1小时）');
     // Check record count
     if (g.recordCount < expectedRecords) {
       issueList.push(`打卡不足（应${expectedRecords}条，实际${g.recordCount}条）`);
@@ -545,8 +548,8 @@ function runAnalysis() {
 
     if (issueList.length > 0) parsedData.error.push({ ...g, _issue: issueList.join(' / ') });
 
-    // Salary employees: error check only, skip OT/DT
-    if (g.salary) return;
+    // Salary or short punch anomaly: skip OT/DT
+    if (g.salary || g.shortRecord) return;
 
     // CA law recalc for hourly
     const h = g.total;
