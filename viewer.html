@@ -3,187 +3,615 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>考勤分析报告</title>
+<title>iSolved 考勤分析工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
-:root{--bg:#0e0e0f;--surface:#161618;--border:#2a2a2e;--accent:#e8ff47;--text:#f0f0f0;--muted:#666;--err-bg:#1a0a0a;--err:#ff4444;--ot-bg:#0a1220;--ot:#47c8ff;--dt-bg:#1a0f00;--dt:#ff9900;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root {
+  --bg:#0e0e0f; --surface:#161618; --border:#2a2a2e;
+  --accent:#e8ff47; --text:#f0f0f0; --muted:#666;
+  --err-bg:#1a0a0a; --err:#ff4444;
+  --ot-bg:#0a1220;  --ot:#47c8ff;
+  --dt-bg:#1a0f00;  --dt:#ff9900;
+}
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;padding:40px 24px;}
-.wrap{max-width:1100px;margin:0 auto;}
-header{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:32px;}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','Noto Sans SC',monospace;min-height:100vh;padding:40px 24px;}
+header{max-width:1100px;margin:0 auto 36px;border-bottom:1px solid var(--border);padding-bottom:24px;}
 .subtitle{font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
-h1{font-family:'Syne',sans-serif;font-size:clamp(24px,4vw,42px);font-weight:800;letter-spacing:-1px;color:var(--accent);}
+h1{font-family:'Inter','Noto Sans SC',sans-serif;font-size:clamp(28px,4vw,46px);font-weight:800;letter-spacing:-1px;color:var(--accent);}
 h1 span{color:var(--text);}
-.meta{font-size:11px;color:var(--muted);margin-top:8px;}
-.readonly-badge{display:inline-block;font-size:10px;padding:3px 10px;border-radius:99px;border:1px solid var(--border);color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-left:12px;}
 
-.loading{text-align:center;padding:80px 0;color:var(--muted);}
-.loading-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1s infinite;}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.2;}}
+.tutorial{max-width:1100px;margin:0 auto 28px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.tutorial-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;}
+.tutorial-header:hover{background:#1a1a1a;}
+.tutorial-title{font-family:'Inter','Noto Sans SC',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.tutorial-toggle{font-size:11px;color:var(--muted);letter-spacing:1px;}
+.tutorial-body{padding:0 20px 20px;display:none;}
+.tutorial-body.open{display:block;}
+.steps{display:flex;flex-direction:column;gap:0;}
+.step{display:flex;gap:14px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #1e1e1e;}
+.step:last-child{border-bottom:none;}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#000;font-family:'Inter','Noto Sans SC',sans-serif;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-text{font-size:12px;color:var(--text);line-height:1.6;}
+.step-text strong{color:var(--accent);}
+.step-text code{background:#1e1e1e;padding:1px 6px;border-radius:4px;font-size:11px;color:#a78bfa;}
+.status-bar{max-width:1100px;margin:0 auto 20px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:10px;}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.status-dot.ok{background:#44cc77;}
+.status-dot.loading{background:#ff9900;animation:pulse 1s infinite;}
+.status-dot.err{background:var(--err);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
-.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px;}
+.drop-zone{max-width:1100px;margin:0 auto 28px;border:2px dashed var(--border);border-radius:12px;padding:44px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--surface);}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:#1a1a0a;}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{font-size:36px;margin-bottom:10px;}
+.drop-text strong{color:var(--accent);font-size:15px;display:block;margin-bottom:4px;}
+.drop-text{font-size:12px;color:var(--muted);}
+.file-tag{font-size:11px;color:var(--accent);margin-top:8px;}
+
+.entity-sel{font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:12px;padding:7px 18px;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:2px;text-transform:uppercase;transition:all .15s;}
+.entity-sel:hover{border-color:var(--accent);color:var(--accent);}
+.entity-sel.active{border-color:var(--accent);color:#000;background:var(--accent);font-weight:700;}
+.run-btn{display:block;width:100%;max-width:1100px;margin:0 auto 36px;padding:16px;background:var(--accent);color:#000;border:none;border-radius:10px;font-family:'Inter','Noto Sans SC',sans-serif;font-size:16px;font-weight:800;letter-spacing:1px;cursor:pointer;transition:opacity .15s;text-transform:uppercase;}
+.run-btn:hover{opacity:.85;}
+.run-btn:disabled{opacity:.3;cursor:not-allowed;}
+
+.results{max-width:1100px;margin:0 auto;display:none;}
+.results.show{display:block;}
+
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px;}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;}
 .stat-card.err{border-color:var(--err);background:var(--err-bg);}
 .stat-card.ot{border-color:var(--ot);background:var(--ot-bg);}
 .stat-card.dt{border-color:var(--dt);background:var(--dt-bg);}
+.stat-card.info{border-color:var(--accent);background:#111a00;}
 .stat-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
-.stat-value{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;line-height:1;}
+.stat-value{font-family:'Inter','Noto Sans SC',sans-serif;font-size:30px;font-weight:800;line-height:1;}
 .stat-card.err .stat-value{color:var(--err);}
 .stat-card.ot .stat-value{color:var(--ot);}
 .stat-card.dt .stat-value{color:var(--dt);}
+.stat-card.info .stat-value{color:var(--accent);}
+
+.chart-section{margin-bottom:36px;}
+.metric-bar{display:flex;gap:8px;margin-bottom:20px;align-items:center;flex-wrap:wrap;}
+.metric-bar span{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.m-btn{font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:11px;padding:6px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:1px;transition:all .15s;}
+.m-btn.active{border-color:var(--accent);color:var(--accent);background:#111a00;}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;}
+.chart-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
 
 .section{margin-bottom:32px;}
-.sec-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;}
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.sec-title{font-family:'Inter','Noto Sans SC',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+.tag{font-size:10px;padding:3px 10px;border-radius:99px;letter-spacing:1px;}
+.tag.err{background:var(--err-bg);color:var(--err);border:1px solid var(--err);}
+.tag.ot{background:var(--ot-bg);color:var(--ot);border:1px solid var(--ot);}
+.tag.dt{background:var(--dt-bg);color:var(--dt);border:1px solid var(--dt);}
+.exp-btn{font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:11px;padding:6px 14px;border-radius:6px;cursor:pointer;border:1px solid;letter-spacing:1px;text-transform:uppercase;transition:opacity .15s;}
+.exp-btn:hover{opacity:.75;}
+.exp-btn.err{border-color:var(--err);color:var(--err);background:var(--err-bg);}
+.exp-btn.ot{border-color:var(--ot);color:var(--ot);background:var(--ot-bg);}
+.exp-btn.dt{border-color:var(--dt);color:var(--dt);background:var(--dt-bg);}
 .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:12px;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
 th{background:var(--surface);color:var(--muted);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);}
-td{padding:10px 14px;border-bottom:1px solid #1c1c1e;vertical-align:middle;}
+td{padding:11px 14px;border-bottom:1px solid #1c1c1e;vertical-align:middle;line-height:1.5;}
 tr:last-child td{border-bottom:none;}
 .err-row td{background:var(--err-bg);}
 .ot-row td{background:var(--ot-bg);}
 .dt-row td{background:var(--dt-bg);}
+.badge{font-size:10px;padding:2px 8px;border-radius:4px;}
+.badge.miss{background:#3a0a0a;color:var(--err);}
 .hi-ot{color:var(--ot);font-weight:500;}
 .hi-dt{color:var(--dt);font-weight:500;}
 .hi-err{color:var(--err);font-weight:500;}
 .dept-pill{font-size:10px;padding:2px 8px;border-radius:4px;background:#1e1e28;color:#a78bfa;border:1px solid #3a3a5a;}
 .entity-pill{font-size:10px;padding:2px 8px;border-radius:4px;background:#1a1a0a;color:var(--accent);border:1px solid #3a3a1a;}
-.badge{font-size:10px;padding:2px 8px;border-radius:4px;}
-.badge.miss{background:#3a0a0a;color:var(--err);}
 .empty{text-align:center;padding:32px;color:var(--muted);font-size:12px;}
-.error-msg{text-align:center;padding:80px 0;color:var(--err);}
-  /* Charts */
-  .chart-section{margin-bottom:36px;}
-  .metric-bar{display:flex;gap:8px;margin-bottom:20px;align-items:center;flex-wrap:wrap;}
-  .metric-bar span{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
-  .m-btn{font-family:'DM Mono',monospace;font-size:11px;padding:6px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:1px;transition:all .15s;}
-  .m-btn.active{border-color:var(--accent);color:var(--accent);background:#111a00;}
-  .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px 24px;}
-  .chart-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;}
+.export-all{display:block;width:100%;padding:14px;background:var(--accent);color:#000;border:none;border-radius:10px;font-family:'Inter','Noto Sans SC',sans-serif;font-size:15px;font-weight:800;letter-spacing:1px;cursor:pointer;transition:opacity .15s;text-transform:uppercase;margin-bottom:32px;}
+.export-all:hover{opacity:.85;}
 
-  /* Filters */
-  .filter-bar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:28px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;}
-  .filter-group{display:flex;flex-direction:column;gap:6px;min-width:160px;flex:1;}
-  .filter-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
-  .filter-select{background:#0e0e0f;border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
-  .filter-select:focus{border-color:var(--accent);}
-  .filter-reset{font-family:'DM Mono',monospace;font-size:11px;padding:8px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:1px;text-transform:uppercase;transition:all .15s;white-space:nowrap;align-self:flex-end;}
-  .filter-reset:hover{border-color:var(--accent);color:var(--accent);}
-  .filter-count{font-size:11px;color:var(--muted);align-self:flex-end;padding-bottom:9px;white-space:nowrap;}
-  .sort-btn{font-family:'DM Mono',monospace;font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:1px;transition:all .15s;display:inline-flex;align-items:center;gap:4px;}
-  .sort-btn:hover,.sort-btn.active{border-color:var(--accent);color:var(--accent);}
-  th.sortable{cursor:pointer;user-select:none;}
-  th.sortable:hover{color:var(--accent);}
-  th.sort-asc::after{content:' ▴';color:var(--accent);}
-  th.sort-desc::after{content:' ▾';color:var(--accent);}
+.pdf-section{margin-bottom:36px;}
+.pdf-section-title{font-family:'Inter','Noto Sans SC',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;}
+.pdf-btn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;}
+.pdf-dept-btn{font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:11px;padding:10px 14px;border-radius:8px;cursor:pointer;border:1px solid #3a3a5a;color:#a78bfa;background:#0f0a1a;letter-spacing:1px;text-transform:uppercase;transition:all .15s;text-align:left;}
+.pdf-dept-btn:hover{border-color:#a78bfa;background:#1a1028;}
+.pdf-dept-btn .dept-name{font-family:'Inter','Noto Sans SC',sans-serif;font-size:13px;font-weight:700;display:block;margin-bottom:4px;}
+.pdf-dept-btn .dept-stats{color:var(--muted);font-size:10px;}
+.pdf-all-btn{width:100%;font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:12px;padding:12px;border-radius:8px;cursor:pointer;border:1px solid var(--accent);color:var(--accent);background:#111a00;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;transition:all .15s;}
+.pdf-all-btn:hover{background:#1a2a00;}
+
+@media print {
+  body{background:#fff !important;color:#000 !important;padding:0;font-family:Arial,sans-serif;}
+  .drop-zone,.run-btn,.stats-bar,.chart-section,.pdf-section,.status-bar,
+  .export-all,.exp-btn,.sec-header button{display:none !important;}
+  .results{display:block !important;}
+  .section{page-break-inside:avoid;margin-bottom:24px;}
+  .print-header{display:block !important;}
+  .table-wrap{border:1px solid #ddd;border-radius:0;}
+  th{background:#f5f5f5 !important;color:#333 !important;border-bottom:1px solid #ddd;}
+  td{border-bottom:1px solid #eee;color:#000 !important;}
+  .err-row td,.ot-row td,.dt-row td{background:#fff !important;}
+  .hi-ot{color:#0066cc !important;}
+  .hi-dt{color:#cc6600 !important;}
+  .hi-err{color:#c00 !important;}
+  .dept-pill{background:#eee !important;color:#333 !important;border:1px solid #ccc !important;}
+  .entity-pill{background:#eee !important;color:#333 !important;border:1px solid #ccc !important;}
+  .badge.miss{background:#fee !important;color:#c00 !important;}
+  .sec-title{color:#000 !important;}
+  .tag{display:none;}
+  .empty{color:#999 !important;}
+  .print-dept-name{display:block !important;font-size:22px;font-weight:bold;margin-bottom:4px;color:#000;}
+  .print-date{display:block !important;font-size:12px;color:#666;margin-bottom:20px;}
+  .print-summary{display:block !important;font-size:12px;color:#333;margin-bottom:24px;padding:12px;border:1px solid #ddd;border-radius:4px;}
+}
+
+  /* Share */
+  .share-bar{max-width:1100px;margin:0 auto 28px;background:#0a1220;border:1px solid var(--ot);border-radius:12px;padding:20px 24px;display:none;}
+  .share-bar.show{display:block;}
+  .share-bar-title{font-family:'Inter','Noto Sans SC',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--ot);margin-bottom:14px;}
+  .share-link-wrap{display:flex;gap:10px;align-items:center;}
+  .share-link-input{flex:1;background:#0e0e0f;border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:12px;outline:none;}
+  .share-link-input:focus{border-color:var(--ot);}
+  .share-copy-btn{font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:11px;padding:10px 16px;border-radius:6px;cursor:pointer;border:1px solid var(--ot);color:var(--ot);background:#0a1220;letter-spacing:1px;white-space:nowrap;transition:all .15s;}
+  .share-copy-btn:hover{background:#0f1e30;}
+  .share-copy-btn.copied{border-color:#44cc77;color:#44cc77;}
+  .share-generate-btn{display:block;width:100%;max-width:1100px;margin:0 auto 16px;padding:13px;background:transparent;color:var(--ot);border:1px solid var(--ot);border-radius:10px;font-family:'Inter','Noto Sans SC',sans-serif;font-size:14px;font-weight:800;letter-spacing:1px;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+  .share-generate-btn:hover{background:#0a1220;}
+  .share-generate-btn:disabled{opacity:.3;cursor:not-allowed;}
+  .share-status{font-size:11px;color:var(--muted);margin-top:10px;}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="subtitle">LinkW Logistics — 考勤分析报告</div>
-    <h1><span>Hours</span> Report <span class="readonly-badge">只读</span></h1>
-    <div class="meta" id="metaInfo">加载中...</div>
-  </header>
 
-  <div class="loading" id="loading">
-    <div class="loading-dot"></div>
-    <div style="margin-top:16px;font-size:12px;">正在加载报告...</div>
-  </div>
-
-  <div id="reportContent" style="display:none;">
-    <div class="stats-bar">
-      <div class="stat-card err"><div class="stat-label">⚠ 打卡异常</div><div class="stat-value" id="sErr">0</div></div>
-      <div class="stat-card ot"><div class="stat-label">○ Overtime</div><div class="stat-value" id="sOT">0</div></div>
-      <div class="stat-card dt"><div class="stat-label">◎ Double Time</div><div class="stat-value" id="sDT">0</div></div>
+<!-- Print header (hidden on screen) -->
+<div class="print-header" style="display:none;max-width:1100px;margin:0 auto 24px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:20px;">
+    <div>
+      <div id="printDeptName" class="print-dept-name"></div>
+      <div id="printDate" class="print-date"></div>
     </div>
-
-
-
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-      <div class="filter-group">
-        <span class="filter-label">部门</span>
-        <select class="filter-select" id="filterDept" onchange="applyFilters()">
-          <option value="">全部部门</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <span class="filter-label">Manager</span>
-        <select class="filter-select" id="filterManager" onchange="applyFilters()">
-          <option value="">全部 Manager</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <span class="filter-label">类型</span>
-        <select class="filter-select" id="filterType" onchange="applyFilters()">
-          <option value="">全部类型</option>
-          <option value="error">打卡异常</option>
-          <option value="ot">Overtime</option>
-          <option value="dt">Double Time</option>
-        </select>
-      </div>
-      <button class="filter-reset" onclick="resetFilters()">✕ 重置</button>
-      <div class="filter-count" id="filterCount"></div>
-    </div>
-
-    <!-- Charts -->
-    <div class="chart-section">
-      <div class="metric-bar">
-        <span>指标:</span>
-        <button class="m-btn active" onclick="switchMetric('ot',this)">OT Hours</button>
-        <button class="m-btn" onclick="switchMetric('dt',this)">Double Time</button>
-        <button class="m-btn" onclick="switchMetric('total',this)">总工时</button>
-      </div>
-      <div class="charts-grid">
-        <div class="chart-card"><div class="chart-title">按部门 — 条状图</div><canvas id="barChart"></canvas></div>
-        <div class="chart-card"><div class="chart-title">按部门 — 饼状图</div><canvas id="pieChart"></canvas></div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="sec-title" style="color:var(--err)">打卡异常</div>
-      <div class="table-wrap">
-        <table><thead><tr><th class="sortable" onclick="sortTable('tbErr',0,this)">工号</th><th class="sortable" onclick="sortTable('tbErr',1,this)">姓名</th><th>Entity</th><th class="sortable" onclick="sortTable('tbErr',3,this)">部门</th><th class="sortable" onclick="sortTable('tbErr',4,this)">日期</th><th>星期</th><th>问题</th><th class="sortable" onclick="sortTable('tbErr',7,this)">当日总工时</th><th class="sortable" onclick="sortTable('tbErr',8,this)">Manager</th></tr></thead>
-        <tbody id="tbErr"></tbody></table>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="sec-title" style="color:var(--ot)">Overtime</div>
-      <div class="table-wrap">
-        <table><thead><tr><th class="sortable" onclick="sortTable('tbOT',0,this)">工号</th><th class="sortable" onclick="sortTable('tbOT',1,this)">姓名</th><th>Entity</th><th class="sortable" onclick="sortTable('tbOT',3,this)">部门</th><th class="sortable" onclick="sortTable('tbOT',4,this)">日期</th><th>星期</th><th class="sortable" onclick="sortTable('tbOT',6,this)">总工时</th><th>Regular</th><th class="sortable" onclick="sortTable('tbOT',8,this)">OT Hours</th><th class="sortable" onclick="sortTable('tbOT',9,this)">Manager</th></tr></thead>
-        <tbody id="tbOT"></tbody></table>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="sec-title" style="color:var(--dt)">Double Time</div>
-      <div class="table-wrap">
-        <table><thead><tr><th class="sortable" onclick="sortTable('tbDT',0,this)">工号</th><th class="sortable" onclick="sortTable('tbDT',1,this)">姓名</th><th>Entity</th><th class="sortable" onclick="sortTable('tbDT',3,this)">部门</th><th class="sortable" onclick="sortTable('tbDT',4,this)">日期</th><th>星期</th><th class="sortable" onclick="sortTable('tbDT',6,this)">总工时</th><th>Regular</th><th class="sortable" onclick="sortTable('tbDT',8,this)">OT Hours</th><th class="sortable" onclick="sortTable('tbDT',9,this)">DT Hours</th><th class="sortable" onclick="sortTable('tbDT',10,this)">Manager</th></tr></thead>
-        <tbody id="tbDT"></tbody></table>
-      </div>
+    <div style="text-align:right;font-size:11px;color:#666;">
+      <div style="font-weight:bold;font-size:14px;">LinkW Logistics</div>
+      <div>Hours Analysis Report</div>
     </div>
   </div>
+  <div id="printSummary" class="print-summary"></div>
+</div>
 
-  <div class="error-msg" id="errorMsg" style="display:none;">
-    ❌ 报告加载失败，链接可能已失效
+<header>
+  <div class="subtitle">iSolved 考勤分析工具</div>
+  <h1><span>Hours</span> Analyzer</h1>
+</header>
+
+<!-- Tutorial -->
+<div class="tutorial">
+  <div class="tutorial-header" onclick="toggleTutorial()">
+    <span class="tutorial-title">📋 如何导出 iSolved 文件</span>
+    <span class="tutorial-toggle" id="tutToggle">展开 ▾</span>
+  </div>
+  <div class="tutorial-body" id="tutBody">
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">登录 <strong>iSolved</strong></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">顶部导航点 <strong>Reporting</strong></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">点击 <strong>My Reports</strong></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">搜索框输入 <code>Hours Detail Export By Date Range</code>，点击该报告</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text">选择 <strong>Date Range</strong>（日期范围）</div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-text">选择对应的 <strong>Company</strong>（CA / NJ / GA / TX）</div></div>
+      <div class="step"><div class="step-num">7</div><div class="step-text">在 <strong>Employee Status</strong> 选择 <code>Active</code></div></div>
+      <div class="step"><div class="step-num">8</div><div class="step-text">Format 选择 <code>Excel</code></div></div>
+      <div class="step"><div class="step-num">9</div><div class="step-text">点击 <strong>Generate Report</strong></div></div>
+      <div class="step"><div class="step-num">10</div><div class="step-text">回到 <strong>My Report Queue</strong>，等报告生成后点 <strong>View Report</strong> 下载文件</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Employee list status -->
+<div class="status-bar">
+  <div class="status-dot loading" id="statusDot"></div>
+  <span id="statusText">正在加载员工名单...</span>
+</div>
+
+<div style="max-width:1100px;margin:0 auto 16px;display:flex;gap:10px;flex-wrap:wrap;">
+  <span style="font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;align-self:center;">Entity:</span>
+  <button class="entity-sel active" id="eCA" onclick="selectEntity('CA')">CA</button>
+  <button class="entity-sel" id="eNJ" onclick="selectEntity('NJ')">NJ</button>
+  <button class="entity-sel" id="eGA" onclick="selectEntity('GA')">GA</button>
+  <button class="entity-sel" id="eTX" onclick="selectEntity('TX')">TX</button>
+</div>
+<div class="drop-zone" id="dropZone">
+  <input type="file" id="fileInput" accept=".xlsx,.xls" />
+  <div class="drop-icon">📂</div>
+  <div class="drop-text"><strong>拖入 iSolved 导出文件</strong>支持 .xlsx / .xls</div>
+  <div class="file-tag" id="fileTag"></div>
+</div>
+
+<button class="run-btn" id="runBtn" disabled onclick="runAnalysis()">请先上传文件</button>
+
+<div class="results" id="results">
+  <div class="stats-bar">
+    <div class="stat-card err"><div class="stat-label">⚠ 打卡异常</div><div class="stat-value" id="sErr">0</div></div>
+    <div class="stat-card ot"><div class="stat-label">○ Overtime 人次</div><div class="stat-value" id="sOT">0</div></div>
+    <div class="stat-card dt"><div class="stat-label">◎ Double Time 人次</div><div class="stat-value" id="sDT">0</div></div>
+    <div class="stat-card info"><div class="stat-label">∑ 有效员工人次</div><div class="stat-value" id="sTotal">0</div></div>
+  </div>
+
+  <div class="chart-section">
+    <div class="metric-bar">
+      <span>指标:</span>
+      <button class="m-btn active" onclick="switchMetric('ot',this)">OT Hours</button>
+      <button class="m-btn" onclick="switchMetric('dt',this)">Double Time</button>
+      <button class="m-btn" onclick="switchMetric('total',this)">总工时</button>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title">按部门 — 条状图</div><canvas id="barChart"></canvas></div>
+      <div class="chart-card"><div class="chart-title">按部门 — 饼状图</div><canvas id="pieChart"></canvas></div>
+    </div>
+  </div>
+
+
+  <button class="share-generate-btn" id="shareBtn" onclick="generateShareLink()" disabled>
+    🔗 生成分享链接
+  </button>
+  <div class="share-bar" id="shareBar">
+    <div class="share-bar-title">🔗 分享链接（只读）</div>
+    <div class="share-link-wrap">
+      <input class="share-link-input" id="shareLinkInput" readonly />
+      <button class="share-copy-btn" id="shareCopyBtn" onclick="copyShareLink()">复制链接</button>
+    </div>
+    <div class="share-status" id="shareStatus"></div>
+  </div>
+
+  <button class="export-all" onclick="exportAll()">⬇ 导出完整分析报告 (Excel)</button>
+
+  <div class="pdf-section">
+    <div class="pdf-section-title">📄 按部门导出 PDF</div>
+    <button class="pdf-all-btn" onclick="printAllDepts()">⬇ 一次导出所有部门</button>
+    <div class="pdf-btn-grid" id="pdfBtnGrid"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sec-title" style="color:var(--err)">打卡异常</span>
+        <span class="tag err" id="tagErr">0 条</span>
+      </div>
+      <button class="exp-btn err" onclick="exportSection('error')">导出</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>问题</th><th>当日总工时</th><th>Manager</th></tr></thead>
+      <tbody id="tbErr"></tbody></table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sec-title" style="color:var(--ot)">Overtime</span>
+        <span class="tag ot" id="tagOT">0 条</span>
+      </div>
+      <button class="exp-btn ot" onclick="exportSection('ot')">导出</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>Manager</th></tr></thead>
+      <tbody id="tbOT"></tbody></table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sec-title" style="color:var(--dt)">Double Time</span>
+        <span class="tag dt" id="tagDT">0 条</span>
+      </div>
+      <button class="exp-btn dt" onclick="exportSection('dt')">导出</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>DT Hours</th><th>Manager</th></tr></thead>
+      <tbody id="tbDT"></tbody></table>
+    </div>
   </div>
 </div>
 
 <script>
-const JSONBIN_KEY = '$2a$10$/167sSdCN2HNTpvwANPiAOAtW2BLG95kixUBMuJJsjj2Gg8l7ScK2';
+// ── Entity mapping by Legal Name ──────────────────────────────────────────
+const ENTITY_MAP = {
+  'linkw logistics usa inc':       'CA',
+  'linkw techchain logistics inc': 'CA',
+  'linkw logistics nj inc.':       'NJ',
+  'linkw logistics ga inc.':       'GA',
+  'linkw logistics tx inc.':       'TX',
+};
 
-function dp(s){return `<span class="dept-pill">${s}</span>`;}
-function ep(s){return `<span class="entity-pill">${s}</span>`;}
+// ── Runtime data (loaded from Excel files on GitHub) ─────────────────────
+// Key: "ENTITY_EMPID" → { dept, salary }
+let EMP_DATA = {};
+let empDataReady = false;
 
+// ── GitHub raw URLs for employee Excel files ─────────────────────────────
+// These files should be in the same repo as index.html
+const EMP_FILES = [
+  'employees_CA.xlsx',
+  'employees_NJ.xlsx',
+  'employees_GA.xlsx',
+  'employees_TX.xlsx',
+];
+
+async function loadEmployeeFiles() {
+  setStatus('loading', '正在加载员工名单...');
+  try {
+    let totalLoaded = 0;
+    for (const filename of EMP_FILES) {
+      try {
+        const url = filename + '?nocache=' + Date.now();
+        const resp = await fetch(url);
+        if (!resp.ok) { console.warn('Cannot load', filename); continue; }
+        const buf = await resp.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+        rows.forEach(r => {
+          if (!r['Employee ID'] || !r['Legal Name']) return;
+          const legalLower = (r['Legal Name'] || '').toLowerCase().trim();
+          const entity = ENTITY_MAP[legalLower] || 'CA';
+          const key = entity + '_' + parseInt(r['Employee ID']);
+          EMP_DATA[key] = {
+            dept: (r['Department'] || '').split(' - ')[0].trim(),
+            salary: r['Pay Type'] === 'Salary',
+            entity: entity
+          };
+          totalLoaded++;
+        });
+      } catch(e) { console.warn('Error loading', filename, e); }
+    }
+    if (totalLoaded > 0) {
+      empDataReady = true;
+      setStatus('ok', `✓ 员工名单已加载 ${totalLoaded} 人`);
+    } else {
+      // Fallback to hardcoded data if files can't be loaded
+      loadFallback();
+    }
+  } catch(e) {
+    loadFallback();
+  }
+}
+
+function loadFallback() {
+  // Hardcoded fallback (CA + NJ + GA + TX all entities)
+  const raw = [
+    // CA - LinkW Logistics USA Inc
+    [195,'CA','Executive',true],[224,'CA','Unloading',false],[18,'CA','HR',true],
+    [222,'CA','Unloading',false],[191,'CA','Unloading',false],[129,'CA','QC',true],
+    [9,'CA','Resource',true],[174,'CA','Transfer',false],[154,'CA','Accounting',false],
+    [193,'CA','Shipping',false],[40,'CA','Dispatch',false],[119,'CA','Accounting',true],
+    [16,'CA','Resource',true],[215,'CA','Unloading',false],[1,'CA','Receiving',false],
+    [30,'CA','Transfer',false],[2,'CA','Unloading',false],[4,'CA','Shipping',false],
+    [160,'CA','Shipping',true],[38,'CA','Shipping',false],[7,'CA','Unloading',false],
+    [26,'CA','Shipping',false],[168,'CA','Unloading',false],[56,'CA','Unloading',true],
+    [60,'CA','Transfer',false],[190,'CA','Dispatch',false],[77,'CA','Dispatch',true],
+    [182,'CA','Commerce',false],[183,'CA','QC',false],[177,'CA','Resource',true],
+    [208,'CA','Commerce',false],[5,'CA','Transfer',false],[58,'CA','Dispatch',true],
+    [169,'CA','Unloading',false],[207,'CA','Shipping',false],[217,'CA','Executive',true],
+    [212,'CA','Unloading',false],[48,'CA','Unloading',false],[122,'CA','Shipping',false],
+    [9,'CA','Receiving',false],[46,'CA','Dispatch',false],[141,'CA','Resource',false],
+    [200,'CA','Shipping',false],[15,'CA','Dispatch',true],[105,'CA','HR',true],
+    [165,'CA','Shipping',false],[25,'CA','Shipping',false],[147,'CA','Shipping',false],
+    [27,'CA','Shipping',true],[218,'CA','Unloading',false],[176,'CA','Transfer',false],
+    [41,'CA','Unloading',false],[151,'CA','Transfer',false],[29,'CA','Transfer',false],
+    [170,'CA','Unloading',false],[166,'CA','Transfer',false],[66,'CA','HR',true],
+    [209,'CA','Dispatch',false],[19,'CA','Drop-Shipp',false],[21,'CA','Transfer',false],
+    [196,'CA','Shipping',false],[112,'CA','Shipping',false],[220,'CA','Accounting',false],
+    [223,'CA','HR',false],[121,'CA','Dispatch',false],[210,'CA','Dispatch',false],
+    [65,'CA','Shipping',false],[205,'CA','Transfer',false],[199,'CA','Unloading',false],
+    [221,'CA','Resource',false],[213,'CA','Dispatch',false],[127,'CA','Executive',true],
+    [214,'CA','Unloading',false],[189,'CA','Dispatch',true],[9,'CA','Unloading',false],
+    [204,'CA','Shipping',false],[22,'CA','Dispatch',false],[187,'CA','Transfer',false],
+    [84,'CA','Shipping',false],[198,'CA','Dispatch',false],[2,'CA','Receiving',false],
+    [133,'CA','HR',false],[3,'CA','Shipping',false],
+    // CA - TechChain
+    [1012,'CA','Drop-Shipp',false],[1013,'CA','Drop-Shipp',false],[1017,'CA','Drop-Shipp',true],
+    [1027,'CA','Drop-Shipp',false],[1028,'CA','Drop-Shipp',false],[1037,'CA','Drop-Shipp',false],
+    [1040,'CA','Drop-Shipp',false],[1041,'CA','Drop-Shipp',false],[1043,'CA','Drop-Shipp',false],
+    [1044,'CA','Drop-Shipp',true],[1008,'CA','Drop-Shipp',false],
+    // NJ
+    [38,'NJ','NJ-WH',false],[2,'NJ','NJ-Office',true],[31,'NJ','NJ-WH',false],
+    [35,'NJ','NJ-Office',false],[5,'NJ','NJ-Office',true],[37,'NJ','NJ-WH',false],
+    [29,'NJ','NJ-WH',false],[41,'NJ','NJ-Office',false],[28,'NJ','NJ-WH',true],
+    [4,'NJ','NJ-Office',false],[40,'NJ','NJ-Office',false],[42,'NJ','NJ-WH',false],
+    [6,'NJ','NJ-WH',true],[8,'NJ','NJ-Office',false],[14,'NJ','NJ-Office',true],
+    [34,'NJ','NJ-WH',false],[27,'NJ','NJ-Office',false],[32,'NJ','NJ-WH',false],
+    [13,'NJ','Management',true],[1,'NJ','NJ-Office',true],
+  ];
+  raw.forEach(([id, entity, dept, salary]) => {
+    const key = entity + '_' + id;
+    if (!EMP_DATA[key]) EMP_DATA[key] = { dept, salary, entity };
+  });
+  empDataReady = true;
+  setStatus('ok', '✓ 员工名单已加载（本地备份）');
+}
+
+function setStatus(state, text) {
+  document.getElementById('statusDot').className = 'status-dot ' + state;
+  document.getElementById('statusText').textContent = text;
+}
+
+// ── Lookup helpers ────────────────────────────────────────────────────────
+function getEmpInfo(empId) {
+  const id = parseInt(empId);
+  const key = selectedEntity + '_' + id;
+  return EMP_DATA[key] || { dept:'(未知)', salary:false, entity:selectedEntity };
+}
+
+function isSalary(empId) { return getEmpInfo(empId).salary; }
+function getDept(empId)   { return getEmpInfo(empId).dept; }
+function getEntity(empId) { return getEmpInfo(empId).entity; }
+
+// ── File loading ──────────────────────────────────────────────────────────
+let hoursRows = [];
+let selectedEntity = 'CA';
+
+function selectEntity(e) {
+  selectedEntity = e;
+  ['CA','NJ','GA','TX'].forEach(x => {
+    document.getElementById('e'+x).classList.toggle('active', x===e);
+  });
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) loadHoursFile(e.target.files[0]);
+});
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) loadHoursFile(e.dataTransfer.files[0]);
+});
+
+function loadHoursFile(file) {
+  document.getElementById('fileTag').textContent = '📄 ' + file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(e.target.result, { type:'binary' });
+    hoursRows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:null });
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('runBtn').textContent = '▶ 开始分析';
+  };
+  reader.readAsBinaryString(file);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function getName(r) { return `${r.firstName||''} ${r.lastName||''}`.trim(); }
+function fmtDate(serial) {
+  if (!serial || isNaN(serial)) return '';
+  return new Date((serial-25569)*86400*1000).toISOString().slice(0,10);
+}
+function fmtH(v) { return v!=null ? parseFloat(v).toFixed(2)+'h' : '—'; }
+
+// ── Main analysis ─────────────────────────────────────────────────────────
+let parsedData = { error:[], ot:[], dt:[] };
+
+function runAnalysis() {
+  // Keep ALL rows for error checking; salary excluded from OT/DT only
+  const rows = hoursRows;
+
+  // Group by employee + date
+  const grouped = {};
+  rows.forEach(r => {
+    const key = `${r['Employee Number']}_${r['Date']}`;
+    if (!grouped[key]) {
+      const info = getEmpInfo(r['Employee Number']);
+      grouped[key] = {
+        id: r['Employee Number'],
+        firstName: r['Employee First Name'],
+        lastName: r['Employee Last Name'],
+        day: r['Day'], date: r['Date'],
+        manager: r['Employee Manager'] || '',
+        dept: info.dept,
+        entity: info.entity,
+        salary: info.salary,
+        total:0, reg:0, ot:0, dt:0,
+        recordCount:0, missingStart:false, missingEnd:false
+      };
+    }
+    const g = grouped[key];
+    g.total += parseFloat(r['Hours']       || 0);
+    g.reg   += parseFloat(r['Hourly']      || 0);
+    g.ot    += parseFloat(r['Overtime']    || 0);
+    g.dt    += parseFloat(r['Double Time'] || 0);
+    g.recordCount++;
+    if (!r['Start'] || r['Start']===null) g.missingStart = true;
+    if (!r['End']   || r['End']===null)   g.missingEnd   = true;
+  });
+
+  parsedData = { error:[], ot:[], dt:[] };
+  Object.values(grouped).forEach(g => {
+    // Check record count: Hourly should have exactly 2, Salary exactly 1
+    const expectedRecords = g.salary ? 1 : 2;
+    const issueList = [];
+
+    // Always check missing punches regardless of record count
+    if (g.missingStart) issueList.push('缺少上班打卡');
+    if (g.missingEnd)   issueList.push('缺少下班打卡');
+    // Check record count
+    if (g.recordCount < expectedRecords) {
+      issueList.push(`打卡不足（应${expectedRecords}条，实际${g.recordCount}条）`);
+    } else if (g.recordCount > expectedRecords) {
+      issueList.push(`打卡异常（应${expectedRecords}条，实际${g.recordCount}条）`);
+    }
+
+    if (issueList.length > 0) parsedData.error.push({ ...g, _issue: issueList.join(' / ') });
+
+    // Salary employees: error check only, skip OT/DT
+    if (g.salary) return;
+
+    // CA law recalc for hourly
+    const h = g.total;
+    g.reg = Math.min(h, 8);
+    g.ot  = h > 8  ? Math.min(h,12) - 8 : 0;
+    g.dt  = h > 12 ? h - 12 : 0;
+    if (g.dt > 0) parsedData.dt.push(g);
+    else if (g.ot > 0) parsedData.ot.push(g);
+  });
+
+  const allGrouped = Object.values(grouped);
+  document.getElementById('sErr').textContent   = parsedData.error.length;
+  document.getElementById('sOT').textContent    = parsedData.ot.length;
+  document.getElementById('sDT').textContent    = parsedData.dt.length;
+  document.getElementById('sTotal').textContent = allGrouped.length;
+  document.getElementById('tagErr').textContent = parsedData.error.length + ' 条';
+  document.getElementById('tagOT').textContent  = parsedData.ot.length + ' 条';
+  document.getElementById('tagDT').textContent  = parsedData.dt.length + ' 条';
+
+  // Render tables
+  document.getElementById('tbErr').innerHTML = parsedData.error.length === 0
+    ? `<tr><td colspan="9" class="empty">✓ 无打卡异常</td></tr>`
+    : parsedData.error.map(r => `<tr class="err-row">
+        <td>${r.id}</td><td>${getName(r)}</td>
+        <td><span class="entity-pill">${r.entity}</span></td>
+        <td><span class="dept-pill">${r.dept}</span></td>
+        <td>${fmtDate(r.date)}</td><td>${r.day}</td>
+        <td><span class="badge miss">${r._issue}</span></td>
+        <td class="hi-err">${fmtH(r.total)}</td>
+        <td>${r.manager}</td></tr>`).join('');
+
+  document.getElementById('tbOT').innerHTML = parsedData.ot.length === 0
+    ? `<tr><td colspan="10" class="empty">无 Overtime 记录</td></tr>`
+    : parsedData.ot.map(r => `<tr class="ot-row">
+        <td>${r.id}</td><td>${getName(r)}</td>
+        <td><span class="entity-pill">${r.entity}</span></td>
+        <td><span class="dept-pill">${r.dept}</span></td>
+        <td>${fmtDate(r.date)}</td><td>${r.day}</td>
+        <td>${fmtH(r.total)}</td><td>${fmtH(r.reg)}</td>
+        <td class="hi-ot">${fmtH(r.ot)}</td>
+        <td>${r.manager}</td></tr>`).join('');
+
+  document.getElementById('tbDT').innerHTML = parsedData.dt.length === 0
+    ? `<tr><td colspan="11" class="empty">无 Double Time 记录</td></tr>`
+    : parsedData.dt.map(r => `<tr class="dt-row">
+        <td>${r.id}</td><td>${getName(r)}</td>
+        <td><span class="entity-pill">${r.entity}</span></td>
+        <td><span class="dept-pill">${r.dept}</span></td>
+        <td>${fmtDate(r.date)}</td><td>${r.day}</td>
+        <td>${fmtH(r.total)}</td><td>${fmtH(r.reg)}</td>
+        <td class="hi-ot">${fmtH(r.ot)}</td>
+        <td class="hi-dt">${fmtH(r.dt)}</td>
+        <td>${r.manager}</td></tr>`).join('');
+
+  document.getElementById('results').classList.add('show');
+  document.getElementById('shareBtn').disabled = false;
+  renderCharts();
+  buildPdfButtons();
+  document.getElementById('results').scrollIntoView({ behavior:'smooth' });
+}
 
 // ── Charts ────────────────────────────────────────────────────────────────
 const COLORS = ['#e8ff47','#47c8ff','#ff6b35','#ff9900','#44cc77','#c47aff',
                 '#ff4444','#00e5ff','#ffcc00','#7affb2','#ff7eb3','#a8ff78'];
 let barInst=null, pieInst=null, currentMetric='ot';
-let reportData = null;
 
 function switchMetric(m, btn) {
   currentMetric = m;
@@ -193,14 +621,14 @@ function switchMetric(m, btn) {
 }
 
 function buildChartData() {
-  const all = [...(reportData.error||[]), ...(reportData.ot||[]), ...(reportData.dt||[])];
+  const all = [...parsedData.ot, ...parsedData.dt, ...parsedData.error];
   const map = {};
   all.forEach(r => {
-    const d = r['부門'] || r['部门'] || '(未知)';
+    const d = r.dept || '(未知)';
     if (!map[d]) map[d] = { ot:0, dt:0, total:0 };
-    map[d].ot    += parseFloat(r['OT Hours'] || 0);
-    map[d].dt    += parseFloat(r['DT Hours'] || 0);
-    map[d].total += parseFloat(r['总工时']   || 0);
+    map[d].ot    += r.ot    || 0;
+    map[d].dt    += r.dt    || 0;
+    map[d].total += r.total || 0;
   });
   const labels = Object.keys(map).sort();
   const values = labels.map(l => parseFloat((map[l][currentMetric]||0).toFixed(2)));
@@ -236,163 +664,154 @@ function renderCharts() {
   });
 }
 
-
-// ── Filter & Sort ─────────────────────────────────────────────────────────
-let sortState = { table: null, col: null, dir: 'asc' };
-
-function populateFilters(r) {
-  const depts    = [...new Set([...(r.error||[]),...(r.ot||[]),...(r.dt||[])].map(x=>x['部门']).filter(Boolean))].sort();
-  const managers = [...new Set([...(r.error||[]),...(r.ot||[]),...(r.dt||[])].map(x=>x['Manager']).filter(Boolean))].sort();
-
-  const dSel = document.getElementById('filterDept');
-  depts.forEach(d => { const o=document.createElement('option'); o.value=d; o.textContent=d; dSel.appendChild(o); });
-
-  const mSel = document.getElementById('filterManager');
-  managers.forEach(m => { const o=document.createElement('option'); o.value=m; o.textContent=m; mSel.appendChild(o); });
+// ── PDF / Print ───────────────────────────────────────────────────────────
+function buildPdfButtons() {
+  const depts = [...new Set([
+    ...parsedData.error.map(r=>r.dept),
+    ...parsedData.ot.map(r=>r.dept),
+    ...parsedData.dt.map(r=>r.dept)
+  ])].sort();
+  document.getElementById('pdfBtnGrid').innerHTML = depts.map(dept => {
+    const e = parsedData.error.filter(r=>r.dept===dept).length;
+    const o = parsedData.ot.filter(r=>r.dept===dept).length;
+    const d = parsedData.dt.filter(r=>r.dept===dept).length;
+    return `<button class="pdf-dept-btn" onclick="printDept('${dept}')">
+      <span class="dept-name">${dept}</span>
+      <span class="dept-stats">${e?`⚠ ${e} 异常  `:''}${o?`OT ${o}  `:''}${d?`DT ${d}`:''}${(!e&&!o&&!d)?'✓ 无异常':''}</span>
+    </button>`;
+  }).join('');
 }
 
-function applyFilters() {
-  const dept    = document.getElementById('filterDept').value;
-  const manager = document.getElementById('filterManager').value;
-  const type    = document.getElementById('filterType').value;
-
-  let visible = 0;
-  ['tbErr','tbOT','tbDT'].forEach((tbId, idx) => {
-    const typeKey = ['error','ot','dt'][idx];
-    const section = document.getElementById(tbId).closest('.section');
-    // Show/hide entire section based on type filter
-    if (type && type !== typeKey) {
-      section.style.display = 'none';
-      return;
-    }
-    section.style.display = '';
-
-    const rows = document.querySelectorAll(`#${tbId} tr:not(.empty-row)`);
-    rows.forEach(tr => {
-      if (tr.querySelector('.empty')) return;
-      const pills = tr.querySelectorAll('.dept-pill, .entity-pill');
-      const deptPill = tr.querySelector('.dept-pill');
-      const rowDept = deptPill ? deptPill.textContent : '';
-      // Manager is last td
-      const tds = tr.querySelectorAll('td');
-      const rowManager = tds.length ? tds[tds.length-1].textContent : '';
-      const show = (!dept || rowDept===dept) && (!manager || rowManager===manager);
-      tr.style.display = show ? '' : 'none';
-      if (show) visible++;
-    });
+function filterTablesToDept(dept) {
+  document.querySelectorAll('#tbErr tr, #tbOT tr, #tbDT tr').forEach(tr => {
+    if (tr.querySelector('.empty')) return;
+    const pill = tr.querySelector('.dept-pill');
+    if (!pill) return;
+    tr.style.display = (dept===null || pill.textContent===dept) ? '' : 'none';
   });
-
-  document.getElementById('filterCount').textContent = `显示 ${visible} 条记录`;
 }
 
-function resetFilters() {
-  document.getElementById('filterDept').value = '';
-  document.getElementById('filterManager').value = '';
-  document.getElementById('filterType').value = '';
-  document.querySelectorAll('#tbErr tr, #tbOT tr, #tbDT tr').forEach(tr => tr.style.display = '');
-  document.querySelectorAll('.section').forEach(s => s.style.display = '');
-  document.getElementById('filterCount').textContent = '';
+function printDept(dept) {
+  const e = parsedData.error.filter(r=>r.dept===dept);
+  const o = parsedData.ot.filter(r=>r.dept===dept);
+  const d = parsedData.dt.filter(r=>r.dept===dept);
+  document.getElementById('printDeptName').textContent = dept + ' Department';
+  document.getElementById('printDate').textContent = 'Report generated: ' + new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('printSummary').innerHTML =
+    `<strong>Summary</strong> &nbsp;|&nbsp; 打卡异常: <strong style="color:#c00">${e.length}</strong> &nbsp;|&nbsp; Overtime: <strong style="color:#0066cc">${o.length}</strong> 人次 &nbsp;|&nbsp; Double Time: <strong style="color:#cc6600">${d.length}</strong> 人次`;
+  filterTablesToDept(dept);
+  window.print();
+  setTimeout(() => filterTablesToDept(null), 500);
 }
 
-function sortTable(tbId, colIdx, thEl) {
-  const key = tbId + '_' + colIdx;
-  if (sortState.table === key) {
-    sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
-  } else {
-    sortState.table = key;
-    sortState.dir = 'asc';
-  }
-
-  // Reset all th sort classes in this table
-  thEl.closest('thead').querySelectorAll('th').forEach(th => {
-    th.classList.remove('sort-asc','sort-desc');
-  });
-  thEl.classList.add(sortState.dir === 'asc' ? 'sort-asc' : 'sort-desc');
-
-  const tbody = document.getElementById(tbId);
-  const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.querySelector('.empty'));
-  rows.sort((a, b) => {
-    const aVal = a.querySelectorAll('td')[colIdx]?.textContent.trim() || '';
-    const bVal = b.querySelectorAll('td')[colIdx]?.textContent.trim() || '';
-    const aNum = parseFloat(aVal);
-    const bNum = parseFloat(bVal);
-    if (!isNaN(aNum) && !isNaN(bNum)) return sortState.dir==='asc' ? aNum-bNum : bNum-aNum;
-    return sortState.dir==='asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-  });
-  rows.forEach(r => tbody.appendChild(r));
+function printAllDepts() {
+  const depts = [...new Set([...parsedData.error,...parsedData.ot,...parsedData.dt].map(r=>r.dept))].sort();
+  let i = 0;
+  function next() { if (i>=depts.length) return; printDept(depts[i++]); setTimeout(next, 800); }
+  next();
 }
 
-async function loadReport() {
-  const params = new URLSearchParams(window.location.search);
-  const binId = params.get('bin');
-  if (!binId) { showError(); return; }
+// ── Share via JSONBin ─────────────────────────────────────────────────────
+const JSONBIN_KEY = '$2a$10$/167sSdCN2HNTpvwANPiAOAtW2BLG95kixUBMuJJsjj2Gg8l7ScK2';
+const JSONBIN_API = 'https://api.jsonbin.io/v3/b';
+let currentBinId = null;
+
+async function generateShareLink() {
+  const btn = document.getElementById('shareBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中...';
+  document.getElementById('shareStatus').textContent = '正在上传数据...';
+
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    entity: selectedEntity,
+    summary: {
+      error: parsedData.error.length,
+      ot: parsedData.ot.length,
+      dt: parsedData.dt.length
+    },
+    error: parsedData.error.map(toRow),
+    ot:    parsedData.ot.map(toRow),
+    dt:    parsedData.dt.map(toRow)
+  };
 
   try {
-    const resp = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-      headers: { 'X-Master-Key': JSONBIN_KEY }
+    const resp = await fetch(JSONBIN_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Name': 'hours-report-' + new Date().toISOString().slice(0,10),
+        'X-Bin-Private': 'false'
+      },
+      body: JSON.stringify(payload)
     });
-    if (!resp.ok) throw new Error('Fetch failed');
     const data = await resp.json();
-    const r = data.record;
+    if (!data.metadata?.id) throw new Error('No bin ID returned');
+    currentBinId = data.metadata.id;
 
-    // Meta
-    const d = new Date(r.generatedAt);
-    document.getElementById('metaInfo').textContent =
-      `生成时间: ${d.toLocaleString('zh-CN')}  |  Entity: ${r.entity||'—'}  |  共 ${(r.error||[]).length + (r.ot||[]).length + (r.dt||[]).length} 条记录`;
+    // Build viewer URL — points to the GitHub Pages viewer
+    const viewerBase = window.location.origin + window.location.pathname.replace('index.html','');
+    const shareUrl = viewerBase + 'viewer.html?bin=' + currentBinId;
 
-    // Stats
-    document.getElementById('sErr').textContent = (r.error||[]).length;
-    document.getElementById('sOT').textContent  = (r.ot||[]).length;
-    document.getElementById('sDT').textContent  = (r.dt||[]).length;
-
-    // Tables
-    document.getElementById('tbErr').innerHTML = !(r.error||[]).length
-      ? `<tr><td colspan="9" class="empty">✓ 无打卡异常</td></tr>`
-      : r.error.map(row => `<tr class="err-row">
-          <td>${row['工号']}</td><td>${row['姓名']}</td>
-          <td>${ep(row['Entity']||'')}</td><td>${dp(row['部门']||'')}</td>
-          <td>${row['日期']}</td><td>${row['星期']}</td>
-          <td><span class="badge miss">${row['问题']||''}</span></td>
-          <td class="hi-err">${row['总工时']}h</td>
-          <td>${row['Manager']||''}</td></tr>`).join('');
-
-    document.getElementById('tbOT').innerHTML = !(r.ot||[]).length
-      ? `<tr><td colspan="10" class="empty">无 Overtime 记录</td></tr>`
-      : r.ot.map(row => `<tr class="ot-row">
-          <td>${row['工号']}</td><td>${row['姓名']}</td>
-          <td>${ep(row['Entity']||'')}</td><td>${dp(row['部门']||'')}</td>
-          <td>${row['日期']}</td><td>${row['星期']}</td>
-          <td>${row['总工时']}h</td><td>${row['Regular']}h</td>
-          <td class="hi-ot">${row['OT Hours']}h</td>
-          <td>${row['Manager']||''}</td></tr>`).join('');
-
-    document.getElementById('tbDT').innerHTML = !(r.dt||[]).length
-      ? `<tr><td colspan="11" class="empty">无 Double Time 记录</td></tr>`
-      : r.dt.map(row => `<tr class="dt-row">
-          <td>${row['工号']}</td><td>${row['姓名']}</td>
-          <td>${ep(row['Entity']||'')}</td><td>${dp(row['部门']||'')}</td>
-          <td>${row['日期']}</td><td>${row['星期']}</td>
-          <td>${row['总工时']}h</td><td>${row['Regular']}h</td>
-          <td class="hi-ot">${row['OT Hours']}h</td>
-          <td class="hi-dt">${row['DT Hours']}h</td>
-          <td>${row['Manager']||''}</td></tr>`).join('');
-
-    reportData = r;
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('reportContent').style.display = 'block';
-    populateFilters(r);
-    renderCharts();
+    document.getElementById('shareLinkInput').value = shareUrl;
+    document.getElementById('shareBar').classList.add('show');
+    document.getElementById('shareStatus').textContent = '✓ 链接有效期永久，可直接发给主管';
+    btn.textContent = '🔗 重新生成';
+    btn.disabled = false;
   } catch(e) {
-    showError();
+    document.getElementById('shareStatus').textContent = '❌ 生成失败: ' + e.message;
+    btn.textContent = '🔗 生成分享链接';
+    btn.disabled = false;
   }
 }
 
-function showError() {
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('errorMsg').style.display = 'block';
+function copyShareLink() {
+  const input = document.getElementById('shareLinkInput');
+  navigator.clipboard.writeText(input.value).then(() => {
+    const btn = document.getElementById('shareCopyBtn');
+    btn.textContent = '✓ 已复制';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '复制链接'; btn.classList.remove('copied'); }, 2000);
+  });
 }
 
-loadReport();
+// ── Export ────────────────────────────────────────────────────────────────
+function toRow(r) {
+  return { '工号':r.id, 'Entity':r.entity, '姓名':getName(r), '部门':r.dept,
+    '日期':fmtDate(r.date), '星期':r.day,
+    '总工时':parseFloat((r.total||0).toFixed(2)),
+    'Regular':parseFloat((r.reg||0).toFixed(2)),
+    'OT Hours':parseFloat((r.ot||0).toFixed(2)),
+    'DT Hours':parseFloat((r.dt||0).toFixed(2)),
+    'Manager':r.manager, '问题':r._issue||'' };
+}
+function exportSection(type) {
+  const data = parsedData[type];
+  if (!data?.length) return alert('没有数据');
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.map(toRow)),
+    type==='error'?'打卡异常':type==='ot'?'Overtime':'Double Time');
+  XLSX.writeFile(wb, `isolved_${type}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+function exportAll() {
+  const wb = XLSX.utils.book_new();
+  const make = (d,label) => XLSX.utils.json_to_sheet(d.length?d.map(toRow):[{提示:`无${label}记录`}]);
+  XLSX.utils.book_append_sheet(wb, make(parsedData.error,'打卡异常'), '打卡异常');
+  XLSX.utils.book_append_sheet(wb, make(parsedData.ot,'Overtime'), 'Overtime');
+  XLSX.utils.book_append_sheet(wb, make(parsedData.dt,'Double Time'), 'Double Time');
+  XLSX.writeFile(wb, `isolved_分析报告_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ── Init: load employee files on page load ────────────────────────────────
+function toggleTutorial() {
+  const body = document.getElementById('tutBody');
+  const toggle = document.getElementById('tutToggle');
+  const open = body.classList.toggle('open');
+  toggle.textContent = open ? '收起 ▴' : '展开 ▾';
+}
+
+loadEmployeeFiles();
 </script>
 </body>
 </html>
