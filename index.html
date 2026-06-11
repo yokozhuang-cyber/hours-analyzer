@@ -635,7 +635,7 @@ function switchMetric(m, btn) {
 }
 
 function buildChartData() {
-  const all = [...parsedData.ot, ...parsedData.dt, ...parsedData.error];
+  const all = [...parsedData.ot, ...parsedData.dt];
   const map = {};
   all.forEach(r => {
     const d = r.dept || '(未知)';
