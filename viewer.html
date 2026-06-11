@@ -82,14 +82,14 @@ tr:last-child td{border-bottom:none;}
 <body>
 <div class="wrap">
   <header>
-    <div class="subtitle">LinkW Logistics USA — 考勤分析报告 - Create by Yoko Zhuang</div>
-    <h1><span>Hours</span> Report <span class="readonly-badge">只读 有任何问题请联系Yoko</span></h1>
-    <div class="meta" id="metaInfo">加载中...</div>
+    <div class="subtitle">LinkW Logistics USA — 考勤分析报告 Create by Yoko Zhuang</div>
+    <h1><span>Hours</span> Report <span class="readonly-badge">只读 有问题请联系Yoko</span></h1>
+    <div class="meta" id="metaInfo">加载中...别急别急你别急</div>
   </header>
 
   <div class="loading" id="loading">
     <div class="loading-dot"></div>
-    <div style="margin-top:16px;font-size:12px;">正在加载报告...</div>
+    <div style="margin-top:16px;font-size:12px;">正在加载报告...有DT你要小心了</div>
   </div>
 
   <div id="reportContent" style="display:none;">
@@ -193,7 +193,7 @@ function switchMetric(m, btn) {
 }
 
 function buildChartData() {
-  const all = [...(reportData.error||[]), ...(reportData.ot||[]), ...(reportData.dt||[])];
+  const all = [...(reportData.ot||[]), ...(reportData.dt||[])];
   const map = {};
   all.forEach(r => {
     const d = r['부門'] || r['部门'] || '(未知)';
