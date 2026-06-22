@@ -234,9 +234,9 @@ tr:last-child td{border-bottom:none;}
 <div class="results" id="results">
   <div class="stats-bar">
     <div class="stat-card err"><div class="stat-label">⚠ 打卡异常</div><div class="stat-value" id="sErr">0</div></div>
-    <div class="stat-card ot"><div class="stat-label">○ Overtime 人次</div><div class="stat-value" id="sOT">0</div></div>
-    <div class="stat-card dt"><div class="stat-label">◎ Double Time 人次</div><div class="stat-value" id="sDT">0</div></div>
-    <div class="stat-card info"><div class="stat-label">∑ 有效员工人次</div><div class="stat-value" id="sTotal">0</div></div>
+    <div class="stat-card ot"><div class="stat-label">○ Overtime 员工数</div><div class="stat-value" id="sOT">0</div></div>
+    <div class="stat-card dt"><div class="stat-label">◎ Double Time 员工数</div><div class="stat-value" id="sDT">0</div></div>
+    <div class="stat-card info"><div class="stat-label">∑ 有效员工数</div><div class="stat-value" id="sTotal">0</div></div>
   </div>
 
   <div class="chart-section">
@@ -382,36 +382,84 @@ async function loadEmployeeFiles() {
 function loadFallback() {
   // Hardcoded fallback (CA + NJ + GA + TX all entities)
   const raw = [
-    // CA - LinkW Logistics USA Inc
-    [195,'CA','Executive',true],[224,'CA','Unloading',false],[18,'CA','HR',true],
-    [222,'CA','Unloading',false],[191,'CA','Unloading',false],[129,'CA','QC',true],
-    [9,'CA','Resource',true],[174,'CA','Transfer',false],[154,'CA','Accounting',false],
-    [193,'CA','Shipping',false],[40,'CA','Dispatch',false],[119,'CA','Accounting',true],
-    [16,'CA','Resource',true],[215,'CA','Unloading',false],[1,'CA','Receiving',false],
-    [30,'CA','Transfer',false],[2,'CA','Unloading',false],[4,'CA','Shipping',false],
-    [160,'CA','Shipping',true],[38,'CA','Shipping',false],[7,'CA','Unloading',false],
-    [26,'CA','Shipping',false],[168,'CA','Unloading',false],[56,'CA','Unloading',true],
-    [60,'CA','Transfer',false],[190,'CA','Dispatch',false],[77,'CA','Dispatch',true],
-    [182,'CA','Commerce',false],[183,'CA','QC',false],[177,'CA','Resource',true],
-    [208,'CA','Commerce',false],[5,'CA','Transfer',false],[58,'CA','Dispatch',true],
-    [169,'CA','Unloading',false],[207,'CA','Shipping',false],[217,'CA','Executive',true],
-    [212,'CA','Unloading',false],[48,'CA','Unloading',false],[122,'CA','Shipping',false],
-    [9,'CA','Receiving',false],[46,'CA','Dispatch',false],[141,'CA','Resource',false],
-    [200,'CA','Shipping',false],[15,'CA','Dispatch',true],[105,'CA','HR',true],
-    [165,'CA','Shipping',false],[25,'CA','Shipping',false],[147,'CA','Shipping',false],
-    [27,'CA','Shipping',true],[218,'CA','Unloading',false],[176,'CA','Transfer',false],
-    [41,'CA','Unloading',false],[151,'CA','Transfer',false],[29,'CA','Transfer',false],
-    [170,'CA','Unloading',false],[166,'CA','Transfer',false],[66,'CA','HR',true],
-    [209,'CA','Dispatch',false],[19,'CA','Drop-Shipp',false],[21,'CA','Transfer',false],
-    [196,'CA','Shipping',false],[112,'CA','Shipping',false],[220,'CA','Accounting',false],
-    [223,'CA','HR',false],[121,'CA','Dispatch',false],[210,'CA','Dispatch',false],
-    [65,'CA','Shipping',false],[205,'CA','Transfer',false],[199,'CA','Unloading',false],
-    [221,'CA','Resource',false],[213,'CA','Dispatch',false],[127,'CA','Executive',true],
-    [214,'CA','Unloading',false],[189,'CA','Dispatch',true],[9,'CA','Unloading',false],
-    [204,'CA','Shipping',false],[22,'CA','Dispatch',false],[187,'CA','Transfer',false],
-    [84,'CA','Shipping',false],[198,'CA','Dispatch',false],[2,'CA','Receiving',false],
-    [133,'CA','HR',false],[3,'CA','Shipping',false],
-    // CA - TechChain
+        // CA - LinkW Logistics USA Inc
+    [195,'CA','Executive',true],
+    [224,'CA','Unloading',false],
+    [18,'CA','HR',true],
+    [222,'CA','Unloading',false],
+    [191,'CA','Unloading',false],
+    [129,'CA','QC',true],
+    [174,'CA','Transfer',false],
+    [154,'CA','Accounting',false],
+    [193,'CA','Shipping',false],
+    [40,'CA','Dispatch',false],
+    [119,'CA','Accounting',true],
+    [16,'CA','Resource',true],
+    [1,'CA','Accounting',true],
+    [2,'CA','Unloading',false],
+    [4,'CA','Shipping',false],
+    [160,'CA','Shipping',true],
+    [38,'CA','Shipping',false],
+    [225,'CA','Unloading',false],
+    [227,'CA','Shipping',false],
+    [7,'CA','Unloading',false],
+    [168,'CA','Unloading',false],
+    [56,'CA','Unloading',true],
+    [60,'CA','Transfer',false],
+    [190,'CA','Dispatch',false],
+    [77,'CA','Dispatch',true],
+    [182,'CA','Commerce',false],
+    [183,'CA','QC',false],
+    [177,'CA','Resource',true],
+    [208,'CA','Resource',false],
+    [5,'CA','Transfer',false],
+    [58,'CA','Dispatch',true],
+    [169,'CA','Unloading',false],
+    [217,'CA','Executive',true],
+    [212,'CA','Unloading',false],
+    [226,'CA','QC',false],
+    [48,'CA','Unloading',false],
+    [122,'CA','Shipping',false],
+    [46,'CA','Dispatch',false],
+    [141,'CA','Resource',false],
+    [200,'CA','Shipping',false],
+    [15,'CA','Dispatch',true],
+    [165,'CA','Shipping',false],
+    [147,'CA','Shipping',false],
+    [85,'CA','Commerce',true],
+    [218,'CA','Unloading',false],
+    [176,'CA','Transfer',false],
+    [41,'CA','Unloading',false],
+    [151,'CA','Transfer',false],
+    [170,'CA','Unloading',false],
+    [166,'CA','Transfer',false],
+    [66,'CA','HR',true],
+    [209,'CA','Dispatch',false],
+    [21,'CA','Transfer',false],
+    [196,'CA','Shipping',false],
+    [112,'CA','Shipping',false],
+    [220,'CA','Accounting',false],
+    [223,'CA','HR',false],
+    [121,'CA','Dispatch',false],
+    [210,'CA','Dispatch',false],
+    [65,'CA','Shipping',false],
+    [205,'CA','Transfer',false],
+    [199,'CA','Unloading',false],
+    [221,'CA','Resource',false],
+    [213,'CA','Dispatch',false],
+    [127,'CA','Executive',true],
+    [214,'CA','Unloading',false],
+    [189,'CA','Dispatch',true],
+    [9,'CA','Unloading',false],
+    [204,'CA','Shipping',false],
+    [22,'CA','Dispatch',false],
+    [228,'CA','Commerce',true],
+    [187,'CA','Transfer',false],
+    [84,'CA','Shipping',false],
+    [198,'CA','Dispatch',false],
+    [133,'CA','HR',false],
+    [3,'CA','Shipping',false],
+        // CA - TechChain
     [1012,'CA','Drop-Shipp',false],[1013,'CA','Drop-Shipp',false],[1017,'CA','Drop-Shipp',true],
     [1027,'CA','Drop-Shipp',false],[1028,'CA','Drop-Shipp',false],[1037,'CA','Drop-Shipp',false],
     [1040,'CA','Drop-Shipp',false],[1041,'CA','Drop-Shipp',false],[1043,'CA','Drop-Shipp',false],
@@ -572,13 +620,15 @@ function runAnalysis() {
   });
 
   const allGrouped = Object.values(grouped);
-  document.getElementById('sErr').textContent   = parsedData.error.length;
-  document.getElementById('sOT').textContent    = parsedData.ot.length;
-  document.getElementById('sDT').textContent    = parsedData.dt.length;
-  document.getElementById('sTotal').textContent = allGrouped.length;
-  document.getElementById('tagErr').textContent = parsedData.error.length + ' 条';
-  document.getElementById('tagOT').textContent  = parsedData.ot.length + ' 条';
-  document.getElementById('tagDT').textContent  = parsedData.dt.length + ' 条';
+  // Count unique employees (not person-day records)
+  const uniqueEmps = new Set(allGrouped.map(g => g.id)).size;
+  document.getElementById('sErr').textContent   = new Set(parsedData.error.map(r => r.id)).size;
+  document.getElementById('sOT').textContent    = new Set(parsedData.ot.map(r => r.id)).size;
+  document.getElementById('sDT').textContent    = new Set(parsedData.dt.map(r => r.id)).size;
+  document.getElementById('sTotal').textContent = uniqueEmps;
+  document.getElementById('tagErr').textContent = new Set(parsedData.error.map(r => r.id)).size + ' 人';
+  document.getElementById('tagOT').textContent  = new Set(parsedData.ot.map(r => r.id)).size + ' 人';
+  document.getElementById('tagDT').textContent  = new Set(parsedData.dt.map(r => r.id)).size + ' 人';
 
   // Render tables
   document.getElementById('tbErr').innerHTML = parsedData.error.length === 0
