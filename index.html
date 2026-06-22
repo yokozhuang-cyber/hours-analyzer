@@ -163,6 +163,10 @@ tr:last-child td{border-bottom:none;}
   .share-generate-btn:hover{background:#0a1220;}
   .share-generate-btn:disabled{opacity:.3;cursor:not-allowed;}
   .share-status{font-size:11px;color:var(--muted);margin-top:10px;}
+
+  tfoot td{padding:10px 14px;border-top:1px solid var(--border);font-weight:600;background:var(--surface);}
+  .total-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+  .total-val{font-weight:700;}
 </style>
 </head>
 <body>
@@ -297,7 +301,9 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div class="table-wrap">
       <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>Manager</th></tr></thead>
-      <tbody id="tbOT"></tbody></table>
+      <tbody id="tbOT"></tbody>
+      <tfoot id="tfOT"></tfoot>
+      </table>
     </div>
   </div>
 
@@ -311,7 +317,9 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div class="table-wrap">
       <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>星期</th><th>总工时</th><th>Regular</th><th>OT Hours</th><th>DT Hours</th><th>Manager</th></tr></thead>
-      <tbody id="tbDT"></tbody></table>
+      <tbody id="tbDT"></tbody>
+      <tfoot id="tfDT"></tfoot>
+      </table>
     </div>
   </div>
 </div>
@@ -664,6 +672,30 @@ function runAnalysis() {
         <td class="hi-ot">${fmtH(r.ot)}</td>
         <td class="hi-dt">${fmtH(r.dt)}</td>
         <td>${r.manager}</td></tr>`).join('');
+
+  // OT totals
+  const otTotalHours = parsedData.ot.reduce((s,r) => s + r.total, 0);
+  const otTotalReg   = parsedData.ot.reduce((s,r) => s + r.reg,   0);
+  const otTotalOT    = parsedData.ot.reduce((s,r) => s + r.ot,    0);
+  document.getElementById('tfOT').innerHTML = `<tr>
+    <td colspan="4" class="total-label">Total</td>
+    <td class="total-val">${otTotalHours.toFixed(2)}h</td>
+    <td class="total-val">${otTotalReg.toFixed(2)}h</td>
+    <td class="total-val hi-ot">${otTotalOT.toFixed(2)}h</td>
+    <td></td></tr>`;
+
+  // DT totals
+  const dtTotalHours = parsedData.dt.reduce((s,r) => s + r.total, 0);
+  const dtTotalReg   = parsedData.dt.reduce((s,r) => s + r.reg,   0);
+  const dtTotalOT    = parsedData.dt.reduce((s,r) => s + r.ot,    0);
+  const dtTotalDT    = parsedData.dt.reduce((s,r) => s + r.dt,    0);
+  document.getElementById('tfDT').innerHTML = `<tr>
+    <td colspan="4" class="total-label">Total</td>
+    <td class="total-val">${dtTotalHours.toFixed(2)}h</td>
+    <td class="total-val">${dtTotalReg.toFixed(2)}h</td>
+    <td class="total-val hi-ot">${dtTotalOT.toFixed(2)}h</td>
+    <td class="total-val hi-dt">${dtTotalDT.toFixed(2)}h</td>
+    <td></td></tr>`;
 
   document.getElementById('results').classList.add('show');
   document.getElementById('shareBtn').disabled = false;
