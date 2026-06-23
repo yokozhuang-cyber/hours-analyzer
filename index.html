@@ -473,14 +473,28 @@ function loadFallback() {
     [1040,'CA','Drop-Shipp',false],[1041,'CA','Drop-Shipp',false],[1043,'CA','Drop-Shipp',false],
     [1044,'CA','Drop-Shipp',true],[1008,'CA','Drop-Shipp',false],
     // NJ
-    [38,'NJ','NJ-WH',false],[2,'NJ','NJ-Office',true],[31,'NJ','NJ-WH',false],
-    [35,'NJ','NJ-Office',false],[5,'NJ','NJ-Office',true],[37,'NJ','NJ-WH',false],
-    [29,'NJ','NJ-WH',false],[41,'NJ','NJ-Office',false],[28,'NJ','NJ-WH',true],
-    [4,'NJ','NJ-Office',false],[40,'NJ','NJ-Office',false],[42,'NJ','NJ-WH',false],
-    [6,'NJ','NJ-WH',true],[8,'NJ','NJ-Office',false],[14,'NJ','NJ-Office',true],
-    [34,'NJ','NJ-WH',false],[27,'NJ','NJ-Office',false],[32,'NJ','NJ-WH',false],
-    [13,'NJ','Management',true],[1,'NJ','NJ-Office',true],
-  ];
+    [38,'NJ','NJ-WH',false],
+    [43,'NJ','NJ-WH',false],
+    [2,'NJ','NJ-Office',true],
+    [31,'NJ','NJ-WH',false],
+    [35,'NJ','NJ-Office',false],
+    [5,'NJ','NJ-Office',true],
+    [37,'NJ','NJ-WH',false],
+    [29,'NJ','NJ-WH',false],
+    [41,'NJ','NJ-Office',false],
+    [28,'NJ','NJ-WH',true],
+    [4,'NJ','NJ-Office',false],
+    [40,'NJ','NJ-Office',false],
+    [42,'NJ','NJ-WH',false],
+    [6,'NJ','NJ-WH',true],
+    [8,'NJ','NJ-Office',false],
+    [14,'NJ','NJ-Office',true],
+    [34,'NJ','NJ-WH',false],
+    [27,'NJ','NJ-Office',false],
+    [32,'NJ','NJ-WH',false],
+    [13,'NJ','Management',true],
+    [1,'NJ','NJ-Office',true],
+      ];
   raw.forEach(([id, entity, dept, salary]) => {
     const key = entity + '_' + id;
     if (!EMP_DATA[key]) EMP_DATA[key] = { dept, salary, entity };
