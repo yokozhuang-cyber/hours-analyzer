@@ -76,20 +76,24 @@ tr:last-child td{border-bottom:none;}
   th.sortable:hover{color:var(--accent);}
   th.sort-asc::after{content:' ▴';color:var(--accent);}
   th.sort-desc::after{content:' ▾';color:var(--accent);}
+
+  tfoot td{padding:10px 14px;border-top:1px solid var(--border);font-weight:600;background:var(--surface);}
+  .total-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+  .total-val{font-weight:700;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="subtitle">LinkW Logistics USA — 考勤分析报告 Create by Yoko Zhuang</div>
-    <h1><span>Hours</span> Report <span class="readonly-badge">只读 有问题请联系Yoko</span></h1>
-    <div class="meta" id="metaInfo">加载中...别急别急你别急</div>
+    <div class="subtitle">LinkW Logistics USA — 考勤分析报告</div>
+    <h1><span>Hours</span> Report <span class="readonly-badge">只读 Created by Yoko</span></h1>
+    <div class="meta" id="metaInfo">加载中...你别急你别急你急你就找Yoko</div>
   </header>
 
   <div class="loading" id="loading">
     <div class="loading-dot"></div>
-    <div style="margin-top:16px;font-size:12px;">正在加载报告...有DT你要小心了</div>
+    <div style="margin-top:16px;font-size:12px;">正在加载报告...你别急你别急你急你就找Yoko</div>
   </div>
 
   <div id="reportContent" style="display:none;">
@@ -154,7 +158,9 @@ tr:last-child td{border-bottom:none;}
       <div class="sec-title" style="color:var(--ot)">Overtime</div>
       <div class="table-wrap">
         <table><thead><tr><th class="sortable" onclick="sortTable('tbOT',0,this)">工号</th><th class="sortable" onclick="sortTable('tbOT',1,this)">姓名</th><th>Entity</th><th class="sortable" onclick="sortTable('tbOT',3,this)">部门</th><th class="sortable" onclick="sortTable('tbOT',4,this)">日期</th><th>星期</th><th class="sortable" onclick="sortTable('tbOT',6,this)">总工时</th><th>Regular</th><th class="sortable" onclick="sortTable('tbOT',8,this)">OT Hours</th><th class="sortable" onclick="sortTable('tbOT',9,this)">Manager</th></tr></thead>
-        <tbody id="tbOT"></tbody></table>
+        <tbody id="tbOT"></tbody>
+        <tfoot id="tfOT"></tfoot>
+        </table>
       </div>
     </div>
 
@@ -162,7 +168,9 @@ tr:last-child td{border-bottom:none;}
       <div class="sec-title" style="color:var(--dt)">Double Time</div>
       <div class="table-wrap">
         <table><thead><tr><th class="sortable" onclick="sortTable('tbDT',0,this)">工号</th><th class="sortable" onclick="sortTable('tbDT',1,this)">姓名</th><th>Entity</th><th class="sortable" onclick="sortTable('tbDT',3,this)">部门</th><th class="sortable" onclick="sortTable('tbDT',4,this)">日期</th><th>星期</th><th class="sortable" onclick="sortTable('tbDT',6,this)">总工时</th><th>Regular</th><th class="sortable" onclick="sortTable('tbDT',8,this)">OT Hours</th><th class="sortable" onclick="sortTable('tbDT',9,this)">DT Hours</th><th class="sortable" onclick="sortTable('tbDT',10,this)">Manager</th></tr></thead>
-        <tbody id="tbDT"></tbody></table>
+        <tbody id="tbDT"></tbody>
+        <tfoot id="tfDT"></tfoot>
+        </table>
       </div>
     </div>
   </div>
@@ -378,6 +386,30 @@ async function loadReport() {
           <td>${row['Manager']||''}</td></tr>`).join('');
 
     reportData = r;
+    // OT totals
+    const otTotalHours = (r.ot||[]).reduce((s,x) => s + parseFloat(x['总工时']||0), 0);
+    const otTotalReg   = (r.ot||[]).reduce((s,x) => s + parseFloat(x['Regular']||0), 0);
+    const otTotalOT    = (r.ot||[]).reduce((s,x) => s + parseFloat(x['OT Hours']||0), 0);
+    document.getElementById('tfOT').innerHTML = `<tr>
+      <td colspan="4" class="total-label">Total</td>
+      <td class="total-val">${otTotalHours.toFixed(2)}h</td>
+      <td class="total-val">${otTotalReg.toFixed(2)}h</td>
+      <td class="total-val hi-ot">${otTotalOT.toFixed(2)}h</td>
+      <td></td></tr>`;
+
+    // DT totals
+    const dtTotalHours = (r.dt||[]).reduce((s,x) => s + parseFloat(x['总工时']||0), 0);
+    const dtTotalReg   = (r.dt||[]).reduce((s,x) => s + parseFloat(x['Regular']||0), 0);
+    const dtTotalOT    = (r.dt||[]).reduce((s,x) => s + parseFloat(x['OT Hours']||0), 0);
+    const dtTotalDT    = (r.dt||[]).reduce((s,x) => s + parseFloat(x['DT Hours']||0), 0);
+    document.getElementById('tfDT').innerHTML = `<tr>
+      <td colspan="4" class="total-label">Total</td>
+      <td class="total-val">${dtTotalHours.toFixed(2)}h</td>
+      <td class="total-val">${dtTotalReg.toFixed(2)}h</td>
+      <td class="total-val hi-ot">${dtTotalOT.toFixed(2)}h</td>
+      <td class="total-val hi-dt">${dtTotalDT.toFixed(2)}h</td>
+      <td></td></tr>`;
+
     document.getElementById('loading').style.display = 'none';
     document.getElementById('reportContent').style.display = 'block';
     populateFilters(r);
