@@ -625,20 +625,36 @@ dz.addEventListener('drop', e => {
 function loadHoursFile(files) {
   hoursRows = [];
   const fileArr = Array.from(files);
+  if (!fileArr.length) return;
   let loaded = 0;
   const names = fileArr.map(f => f.name).join(' + ');
   document.getElementById('fileTag').textContent = '📄 ' + names;
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('runBtn').textContent = '⏳ 读取中...';
 
   fileArr.forEach(file => {
     const reader = new FileReader();
-    reader.onload = e => {
-      const wb = XLSX.read(e.target.result, { type:'binary' });
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:null });
-      hoursRows = hoursRows.concat(rows);
+    reader.onload = evt => {
+      try {
+        const wb = XLSX.read(evt.target.result, { type:'binary' });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:null });
+        hoursRows = hoursRows.concat(rows);
+      } catch(err) {
+        console.error('Failed to read', file.name, err);
+      }
       loaded++;
       if (loaded === fileArr.length) {
         document.getElementById('runBtn').disabled = false;
-        document.getElementById('runBtn').textContent = `▶ 开始分析（${hoursRows.length} 行数据）`;
+        document.getElementById('runBtn').textContent = fileArr.length > 1
+          ? `▶ 开始分析（${fileArr.length} 个文件，${hoursRows.length} 行数据）`
+          : `▶ 开始分析`;
+      }
+    };
+    reader.onerror = () => {
+      loaded++;
+      if (loaded === fileArr.length && hoursRows.length > 0) {
+        document.getElementById('runBtn').disabled = false;
+        document.getElementById('runBtn').textContent = '▶ 开始分析';
       }
     };
     reader.readAsBinaryString(file);
