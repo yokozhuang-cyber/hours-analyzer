@@ -440,7 +440,9 @@ async function loadEmployeeFiles() {
           EMP_DATA[key] = {
             dept: (r['Department'] || '').split(' - ')[0].trim(),
             salary: r['Pay Type'] === 'Salary',
-            entity: entity
+            entity: entity,
+            firstName: r['First Name'] || '',
+            lastName: r['Last Name'] || ''
           };
           totalLoaded++;
         });
@@ -578,7 +580,7 @@ function loadFallback() {
       ];
   raw.forEach(([id, entity, dept, salary]) => {
     const key = entity + '_' + id;
-    if (!EMP_DATA[key]) EMP_DATA[key] = { dept, salary, entity };
+    if (!EMP_DATA[key]) EMP_DATA[key] = { dept, salary, entity, firstName: '', lastName: '' };
   });
   empDataReady = true;
   setStatus('ok', '✓ 员工名单已加载（本地备份）');
@@ -1164,7 +1166,7 @@ function detectAbsent(rows, dateRange) {
 
   tbAbsent.innerHTML = absentData.map(e => `<tr class="absent-row" id="arow_${e.id}">
     <td>${e.id}</td>
-    <td>${e.firstName||''} ${e.lastName||''}</td>
+    <td>${((e.firstName||'') + ' ' + (e.lastName||'')).trim() || '—'}</td>
     <td><span class="entity-pill">${e.entity}</span></td>
     <td><span class="dept-pill">${e.dept}</span></td>
     <td>${e.manager||''}</td>
@@ -1208,47 +1210,28 @@ function toggleHistory() {
   if (historyOpen) renderHistoryList();
 }
 
-async function renderHistoryList() {
+function renderHistoryList() {
   const list = document.getElementById('historyList');
-  list.innerHTML = '<div class="history-empty">加载中...</div>';
-  try {
-    // Get list of bins tagged with isolved-report
-    const resp = await fetch('https://api.jsonbin.io/v3/b?meta=false', {
-      headers: { 'X-Master-Key': JSONBIN_KEY }
-    });
-    if (!resp.ok) throw new Error();
-    const bins = await resp.json();
-    const reports = (bins||[])
-      .filter(b => b.snippetMeta?.name?.startsWith('hours-report-'))
-      .sort((a,b) => new Date(b.snippetMeta.createdAt) - new Date(a.snippetMeta.createdAt))
-      .slice(0, 20);
-
-    if (!reports.length) {
-      list.innerHTML = '<div class="history-empty">暂无历史记录</div>';
-      return;
-    }
-
-    list.innerHTML = reports.map(b => {
-      const name = b.snippetMeta.name || '';
-      const date = new Date(b.snippetMeta.createdAt).toLocaleString('zh-CN');
-      const viewerBase = window.location.origin + window.location.pathname.replace('index.html','');
-      const url = viewerBase + 'viewer.html?bin=' + b.id;
-      return `<div class="history-item" onclick="window.open('${url}','_blank')">
-        <div>
-          <div class="history-item-range">${name.replace('hours-report-','')}</div>
-          <div class="history-item-date">${date}</div>
-        </div>
-        <div class="history-item-stats">点击查看 →</div>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    list.innerHTML = '<div class="history-empty">加载失败，请检查网络</div>';
+  const stored = JSON.parse(localStorage.getItem('isolved_reports') || '[]');
+  if (!stored.length) {
+    list.innerHTML = '<div class="history-empty">暂无历史记录</div>';
+    return;
   }
+  const viewerBase = window.location.origin + window.location.pathname.replace('index.html','').replace('index','');
+  list.innerHTML = stored.slice().reverse().map(r => `
+    <div class="history-item" onclick="window.open('${viewerBase}viewer.html?bin=${r.binId}','_blank')">
+      <div>
+        <div class="history-item-range">${r.entity} &nbsp;|&nbsp; ${r.dateRange || r.date}</div>
+        <div class="history-item-date">${new Date(r.savedAt).toLocaleString('zh-CN')}</div>
+      </div>
+      <div class="history-item-stats">⚠${r.error} &nbsp;OT ${r.ot} &nbsp;DT ${r.dt} &nbsp;→</div>
+    </div>`).join('');
 }
 
 async function saveToHistory(payload, dateLabel) {
   try {
-    await fetch('https://api.jsonbin.io/v3/b', {
+    // Save to JSONBin for sharing
+    const resp = await fetch('https://api.jsonbin.io/v3/b', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1258,6 +1241,25 @@ async function saveToHistory(payload, dateLabel) {
       },
       body: JSON.stringify(payload)
     });
+    const data = await resp.json();
+    const binId = data.metadata?.id;
+    if (!binId) return;
+
+    // Save reference to localStorage
+    const stored = JSON.parse(localStorage.getItem('isolved_reports') || '[]');
+    stored.push({
+      binId,
+      entity: payload.entity,
+      dateRange: payload.dateRange,
+      date: new Date().toISOString().slice(0,10),
+      savedAt: new Date().toISOString(),
+      error: payload.summary.error,
+      ot: payload.summary.ot,
+      dt: payload.summary.dt
+    });
+    // Keep last 50
+    if (stored.length > 50) stored.splice(0, stored.length - 50);
+    localStorage.setItem('isolved_reports', JSON.stringify(stored));
   } catch(e) { console.warn('History save failed', e); }
 }
 
