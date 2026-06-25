@@ -61,7 +61,7 @@ h1 span{color:var(--text);}
 .results{max-width:1100px;margin:0 auto;display:none;}
 .results.show{display:block;}
 
-.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px;}
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:32px;}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;}
 .stat-card.err{border-color:var(--err);background:var(--err-bg);}
 .stat-card.ot{border-color:var(--ot);background:var(--ot-bg);}
@@ -167,6 +167,29 @@ tr:last-child td{border-bottom:none;}
   tfoot td{padding:10px 14px;border-top:1px solid var(--border);font-weight:600;background:var(--surface);}
   .total-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
   .total-val{font-weight:700;}
+
+  .date-range-bar{max-width:1100px;margin:0 auto 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .date-range-pill{font-size:12px;padding:6px 16px;border-radius:8px;background:#111a00;border:1px solid var(--accent);color:var(--accent);letter-spacing:1px;}
+  .history-btn{font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:11px;padding:6px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;letter-spacing:1px;text-transform:uppercase;transition:all .15s;margin-left:auto;}
+  .history-btn:hover{border-color:var(--accent);color:var(--accent);}
+  /* Absent */
+  .absent-row td{background:#0f0a1a;}
+  .absent-status{font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid #3a3a5a;color:#a78bfa;background:#1e1e28;letter-spacing:1px;}
+  .absent-status.leave{border-color:#44cc77;color:#44cc77;background:#0a1a0a;}
+  .absent-status.absent{border-color:var(--err);color:var(--err);background:var(--err-bg);}
+  /* History panel */
+  .history-panel{max-width:1100px;margin:0 auto 28px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:none;}
+  .history-panel.show{display:block;}
+  .history-panel-header{padding:14px 20px;border-bottom:1px solid var(--border);font-family:'Inter','Noto Sans SC',sans-serif;font-size:13px;font-weight:600;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;}
+  .history-close{cursor:pointer;color:var(--muted);font-size:18px;line-height:1;}
+  .history-list{max-height:300px;overflow-y:auto;}
+  .history-item{padding:12px 20px;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s;}
+  .history-item:hover{background:#1a1a1a;}
+  .history-item:last-child{border-bottom:none;}
+  .history-item-date{font-size:11px;color:var(--muted);}
+  .history-item-range{font-size:12px;color:var(--accent);}
+  .history-item-stats{font-size:11px;color:var(--muted);margin-left:auto;}
+  .history-empty{padding:24px;text-align:center;color:var(--muted);font-size:12px;}
 </style>
 </head>
 <body>
@@ -227,17 +250,35 @@ tr:last-child td{border-bottom:none;}
   <button class="entity-sel" id="eTX" onclick="selectEntity('TX')">TX</button>
 </div>
 <div class="drop-zone" id="dropZone">
-  <input type="file" id="fileInput" accept=".xlsx,.xls" />
+  <input type="file" id="fileInput" accept=".xlsx,.xls" multiple />
   <div class="drop-icon">📂</div>
-  <div class="drop-text"><strong>拖入 iSolved 导出文件</strong>支持 .xlsx / .xls</div>
+  <div class="drop-text"><strong>拖入 iSolved 导出文件</strong>支持同时上传多个文件（如 LinkW + TechChain）</div>
   <div class="file-tag" id="fileTag"></div>
 </div>
 
 <button class="run-btn" id="runBtn" disabled onclick="runAnalysis()">请先上传文件</button>
 
 <div class="results" id="results">
+
+  <!-- Date range + history -->
+  <div class="date-range-bar" id="dateRangeBar" style="display:none;">
+    <span style="font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">数据范围</span>
+    <span class="date-range-pill" id="dateRangePill">—</span>
+    <button class="history-btn" onclick="toggleHistory()">🕘 历史记录</button>
+  </div>
+
+  <!-- History panel -->
+  <div class="history-panel" id="historyPanel">
+    <div class="history-panel-header">
+      历史报告
+      <span class="history-close" onclick="toggleHistory()">×</span>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
   <div class="stats-bar">
     <div class="stat-card err"><div class="stat-label">⚠ 打卡异常</div><div class="stat-value" id="sErr">0</div></div>
+    <div class="stat-card" style="border-color:#ff6b35;background:#1a0f00;"><div class="stat-label" style="color:#ff6b35;">⚖ 合规警告</div><div class="stat-value" id="sComp" style="color:#ff6b35;">0</div></div>
     <div class="stat-card ot"><div class="stat-label">○ Overtime 员工数</div><div class="stat-value" id="sOT">0</div></div>
     <div class="stat-card dt"><div class="stat-label">◎ Double Time 员工数</div><div class="stat-value" id="sDT">0</div></div>
     <div class="stat-card info"><div class="stat-label">∑ 有效员工数</div><div class="stat-value" id="sTotal">0</div></div>
@@ -275,6 +316,36 @@ tr:last-child td{border-bottom:none;}
     <div class="pdf-section-title">📄 按部门导出 PDF</div>
     <button class="pdf-all-btn" onclick="printAllDepts()">⬇ 一次导出所有部门</button>
     <div class="pdf-btn-grid" id="pdfBtnGrid"></div>
+  </div>
+
+  <!-- Compliance -->
+  <div class="section" id="compSection" style="display:none;">
+    <div class="sec-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sec-title" style="color:#ff6b35;">⚖ 合规警告</span>
+        <span class="tag" style="background:#1a0f00;color:#ff6b35;border:1px solid #ff6b35;" id="tagComp">0 条</span>
+      </div>
+      <button class="exp-btn" style="border-color:#ff6b35;color:#ff6b35;background:#1a0f00;" onclick="exportSection('compliance')">导出</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期/周期</th><th>警告类型</th><th>涉及工时</th><th>Manager</th></tr></thead>
+      <tbody id="tbComp"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Absent -->
+  <div class="section" id="absentSection" style="display:none;">
+    <div class="sec-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sec-title" style="color:#a78bfa;">👤 缺勤员工</span>
+        <span class="tag" style="background:#1e1e28;color:#a78bfa;border:1px solid #3a3a5a;" id="tagAbsent">0 人</span>
+      </div>
+      <button class="exp-btn" style="border-color:#a78bfa;color:#a78bfa;background:#1e1e28;" onclick="exportAbsent()">导出</button>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>Manager</th><th>状态</th></tr></thead>
+      <tbody id="tbAbsent"></tbody></table>
+    </div>
   </div>
 
   <div class="section">
@@ -391,87 +462,97 @@ function loadFallback() {
   // Hardcoded fallback (CA + NJ + GA + TX all entities)
   const raw = [
         // CA - LinkW Logistics USA Inc
-    [195,'CA','Executive',true],
-    [224,'CA','Unloading',false],
-    [18,'CA','HR',true],
-    [222,'CA','Unloading',false],
-    [191,'CA','Unloading',false],
-    [129,'CA','QC',true],
-    [174,'CA','Transfer',false],
-    [154,'CA','Accounting',false],
-    [193,'CA','Shipping',false],
-    [40,'CA','Dispatch',false],
-    [119,'CA','Accounting',true],
-    [16,'CA','Resource',true],
-    [1,'CA','Accounting',true],
-    [2,'CA','Unloading',false],
-    [4,'CA','Shipping',false],
-    [160,'CA','Shipping',true],
-    [38,'CA','Shipping',false],
-    [225,'CA','Unloading',false],
-    [227,'CA','Shipping',false],
-    [7,'CA','Unloading',false],
-    [168,'CA','Unloading',false],
-    [56,'CA','Unloading',true],
-    [60,'CA','Transfer',false],
-    [190,'CA','Dispatch',false],
-    [77,'CA','Dispatch',true],
-    [182,'CA','Commerce',false],
-    [183,'CA','QC',false],
-    [177,'CA','Resource',true],
-    [208,'CA','Resource',false],
-    [5,'CA','Transfer',false],
-    [58,'CA','Dispatch',true],
-    [169,'CA','Unloading',false],
-    [217,'CA','Executive',true],
-    [212,'CA','Unloading',false],
-    [226,'CA','QC',false],
-    [48,'CA','Unloading',false],
-    [122,'CA','Shipping',false],
-    [46,'CA','Dispatch',false],
-    [141,'CA','Resource',false],
-    [200,'CA','Shipping',false],
-    [15,'CA','Dispatch',true],
-    [165,'CA','Shipping',false],
-    [147,'CA','Shipping',false],
-    [85,'CA','Commerce',true],
-    [218,'CA','Unloading',false],
-    [176,'CA','Transfer',false],
-    [41,'CA','Unloading',false],
-    [151,'CA','Transfer',false],
-    [170,'CA','Unloading',false],
-    [166,'CA','Transfer',false],
-    [66,'CA','HR',true],
-    [209,'CA','Dispatch',false],
-    [21,'CA','Transfer',false],
-    [196,'CA','Shipping',false],
-    [112,'CA','Shipping',false],
-    [220,'CA','Accounting',false],
-    [223,'CA','HR',false],
-    [121,'CA','Dispatch',false],
-    [210,'CA','Dispatch',false],
-    [65,'CA','Shipping',false],
-    [205,'CA','Transfer',false],
-    [199,'CA','Unloading',false],
-    [221,'CA','Resource',false],
-    [213,'CA','Dispatch',false],
-    [127,'CA','Executive',true],
-    [214,'CA','Unloading',false],
-    [189,'CA','Dispatch',true],
-    [9,'CA','Unloading',false],
-    [204,'CA','Shipping',false],
-    [22,'CA','Dispatch',false],
-    [228,'CA','Commerce',true],
-    [187,'CA','Transfer',false],
-    [84,'CA','Shipping',false],
-    [198,'CA','Dispatch',false],
-    [133,'CA','HR',false],
-    [3,'CA','Shipping',false],
+        [195,'CA','Executive',true],
+        [224,'CA','Unloading',false],
+        [18,'CA','HR',true],
+        [222,'CA','Unloading',false],
+        [191,'CA','Unloading',false],
+        [129,'CA','QC',true],
+        [174,'CA','Transfer',false],
+        [154,'CA','Accounting',false],
+        [193,'CA','Shipping',false],
+        [40,'CA','Dispatch',false],
+        [119,'CA','Accounting',true],
+        [16,'CA','Resource',true],
+        [1,'CA','Accounting',true],
+        [2,'CA','Unloading',false],
+        [4,'CA','Shipping',false],
+        [160,'CA','Shipping',true],
+        [38,'CA','Shipping',false],
+        [225,'CA','Unloading',false],
+        [227,'CA','Shipping',false],
+        [7,'CA','Unloading',false],
+        [168,'CA','Unloading',false],
+        [56,'CA','Unloading',true],
+        [60,'CA','Transfer',false],
+        [190,'CA','Dispatch',false],
+        [77,'CA','Dispatch',true],
+        [182,'CA','Commerce',false],
+        [183,'CA','QC',false],
+        [177,'CA','Resource',true],
+        [208,'CA','Resource',false],
+        [5,'CA','Transfer',false],
+        [58,'CA','Dispatch',true],
+        [169,'CA','Unloading',false],
+        [207,'CA','Shipping',false],
+        [217,'CA','Executive',true],
+        [212,'CA','Unloading',false],
+        [226,'CA','QC',false],
+        [48,'CA','Unloading',false],
+        [122,'CA','Shipping',false],
+        [46,'CA','Dispatch',false],
+        [141,'CA','Resource',false],
+        [200,'CA','Shipping',false],
+        [15,'CA','Dispatch',true],
+        [165,'CA','Shipping',false],
+        [147,'CA','Shipping',false],
+        [85,'CA','Commerce',true],
+        [218,'CA','Unloading',false],
+        [176,'CA','Transfer',false],
+        [41,'CA','Unloading',false],
+        [151,'CA','Transfer',false],
+        [170,'CA','Unloading',false],
+        [166,'CA','Transfer',false],
+        [66,'CA','HR',true],
+        [209,'CA','Dispatch',false],
+        [21,'CA','Transfer',false],
+        [196,'CA','Shipping',false],
+        [220,'CA','Accounting',false],
+        [223,'CA','HR',false],
+        [121,'CA','Dispatch',false],
+        [210,'CA','Dispatch',false],
+        [65,'CA','Shipping',false],
+        [205,'CA','Transfer',false],
+        [199,'CA','Unloading',false],
+        [221,'CA','Resource',false],
+        [213,'CA','Dispatch',false],
+        [127,'CA','Executive',true],
+        [214,'CA','Unloading',false],
+        [229,'CA','Shipping',false],
+        [189,'CA','Dispatch',true],
+        [9,'CA','Unloading',false],
+        [204,'CA','Shipping',false],
+        [22,'CA','Dispatch',false],
+        [228,'CA','Commerce',true],
+        [187,'CA','Transfer',false],
+        [84,'CA','Shipping',false],
+        [198,'CA','Dispatch',false],
+        [133,'CA','HR',false],
+        [3,'CA','Shipping',false],
+
         // CA - TechChain
-    [1012,'CA','Drop-Shipp',false],[1013,'CA','Drop-Shipp',false],[1017,'CA','Drop-Shipp',true],
-    [1027,'CA','Drop-Shipp',false],[1028,'CA','Drop-Shipp',false],[1037,'CA','Drop-Shipp',false],
-    [1040,'CA','Drop-Shipp',false],[1041,'CA','Drop-Shipp',false],[1043,'CA','Drop-Shipp',false],
-    [1044,'CA','Drop-Shipp',true],[1008,'CA','Drop-Shipp',false],
+        [1012,'CA','Drop-Shipp',false],
+        [1040,'CA','Drop-Shipp',false],
+        [1044,'CA','Drop-Shipp',true],
+        [1037,'CA','Drop-Shipp',false],
+        [1028,'CA','Drop-Shipp',false],
+        [1043,'CA','Drop-Shipp',false],
+        [1017,'CA','Drop-Shipp',true],
+        [1041,'CA','Drop-Shipp',false],
+        [1027,'CA','Drop-Shipp',false],
+        [1013,'CA','Drop-Shipp',false],
+        [1008,'CA','Drop-Shipp',false],
+
     // NJ
     [38,'NJ','NJ-WH',false],
     [43,'NJ','NJ-WH',false],
@@ -531,26 +612,37 @@ function selectEntity(e) {
 }
 
 document.getElementById('fileInput').addEventListener('change', e => {
-  if (e.target.files[0]) loadHoursFile(e.target.files[0]);
+  if (e.target.files.length) loadHoursFile(e.target.files);
 });
 const dz = document.getElementById('dropZone');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
 dz.addEventListener('drop', e => {
   e.preventDefault(); dz.classList.remove('drag-over');
-  if (e.dataTransfer.files[0]) loadHoursFile(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files.length) loadHoursFile(e.dataTransfer.files);
 });
 
-function loadHoursFile(file) {
-  document.getElementById('fileTag').textContent = '📄 ' + file.name;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const wb = XLSX.read(e.target.result, { type:'binary' });
-    hoursRows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:null });
-    document.getElementById('runBtn').disabled = false;
-    document.getElementById('runBtn').textContent = '▶ 开始分析';
-  };
-  reader.readAsBinaryString(file);
+function loadHoursFile(files) {
+  hoursRows = [];
+  const fileArr = Array.from(files);
+  let loaded = 0;
+  const names = fileArr.map(f => f.name).join(' + ');
+  document.getElementById('fileTag').textContent = '📄 ' + names;
+
+  fileArr.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const wb = XLSX.read(e.target.result, { type:'binary' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:null });
+      hoursRows = hoursRows.concat(rows);
+      loaded++;
+      if (loaded === fileArr.length) {
+        document.getElementById('runBtn').disabled = false;
+        document.getElementById('runBtn').textContent = `▶ 开始分析（${hoursRows.length} 行数据）`;
+      }
+    };
+    reader.readAsBinaryString(file);
+  });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -609,7 +701,7 @@ function runAnalysis() {
     }
   });
 
-  parsedData = { error:[], ot:[], dt:[] };
+  parsedData = { error:[], ot:[], dt:[], compliance:[] };
   Object.values(grouped).forEach(g => {
     // Check record count: Hourly should have exactly 2, Salary exactly 1
     const expectedRecords = g.salary ? 1 : 2;
@@ -644,7 +736,12 @@ function runAnalysis() {
   const allGrouped = Object.values(grouped);
   // Count unique employees (not person-day records)
   const uniqueEmps = new Set(allGrouped.map(g => g.id)).size;
+  // Separate compliance alerts from punch errors
+  const punchErrors = parsedData.error.filter(r => !r._compliance);
+  const complianceAlerts = parsedData.error.filter(r => r._compliance);
   document.getElementById('sErr').textContent   = new Set(parsedData.error.map(r => r.id)).size;
+  document.getElementById('sComp').textContent  = parsedData.compliance.length;
+  document.getElementById('tagComp').textContent = parsedData.compliance.length + ' 条';
   document.getElementById('sOT').textContent    = new Set(parsedData.ot.map(r => r.id)).size;
   document.getElementById('sDT').textContent    = new Set(parsedData.dt.map(r => r.id)).size;
   document.getElementById('sTotal').textContent = uniqueEmps;
@@ -687,7 +784,80 @@ function runAnalysis() {
         <td class="hi-dt">${fmtH(r.dt)}</td>
         <td>${r.manager}</td></tr>`).join('');
 
-  // OT totals
+  // ── Compliance: Weekly 40h OT & 7th consecutive day ────────────────────
+  // Group by employee + ISO week
+  const weeklyMap = {};
+  const dailyMap  = {};  // empId -> sorted list of dates worked
+  Object.values(grouped).forEach(g => {
+    if (g.salary) return;
+    // Weekly hours
+    const dateObj = new Date((g.date - 25569) * 86400 * 1000);
+    const dow = dateObj.getUTCDay(); // 0=Sun
+    const weekStart = new Date(dateObj);
+    weekStart.setUTCDate(dateObj.getUTCDate() - dow);
+    const weekKey = g.id + '_' + weekStart.toISOString().slice(0,10);
+    if (!weeklyMap[weekKey]) weeklyMap[weekKey] = { id:g.id, firstName:g.firstName, lastName:g.lastName, dept:g.dept, entity:g.entity, manager:g.manager, weekStart:weekStart.toISOString().slice(0,10), total:0, days:[] };
+    weeklyMap[weekKey].total += g.total;
+    weeklyMap[weekKey].days.push(g.date);
+
+    // Daily tracking for 7th day
+    if (!dailyMap[g.id]) dailyMap[g.id] = { id:g.id, firstName:g.firstName, lastName:g.lastName, dept:g.dept, entity:g.entity, manager:g.manager, dates:[] };
+    dailyMap[g.id].dates.push(g.date);
+  });
+
+  // Weekly 40h OT violations
+  Object.values(weeklyMap).forEach(w => {
+    if (w.total > 40) {
+      const weeklyOT = w.total - 40;
+      parsedData.compliance.push({
+        ...w, total: w.total,
+        _issue: `周加班超40小时（当周总计 ${w.total.toFixed(2)}h，超出 ${weeklyOT.toFixed(2)}h）`,
+        date: null, day: `Week of ${w.weekStart}`
+      });
+    }
+  });
+
+  // 7th consecutive day rule — only if dataset spans ≥7 days
+  const allDates = [...new Set(Object.values(grouped).map(g => Math.floor(g.date)))].sort((a,b)=>a-b);
+  if (allDates.length >= 7) {
+    Object.values(dailyMap).forEach(emp => {
+      const dates = [...new Set(emp.dates.map(d => Math.floor(d)))].sort((a,b)=>a-b);
+      // Find any 7 consecutive calendar days all worked
+      for (let i = 0; i <= dates.length - 7; i++) {
+        let consecutive = true;
+        for (let j = 1; j < 7; j++) {
+          if (dates[i+j] - dates[i+j-1] !== 1) { consecutive = false; break; }
+        }
+        if (consecutive) {
+          parsedData.compliance.push({
+            ...emp,
+            _issue: `连续工作7天（第7天：${new Date((dates[i+6]-25569)*86400*1000).toISOString().slice(0,10)}）`,
+            date: dates[i+6], day: '第7天'
+          });
+          break;
+        }
+      }
+    });
+  }
+
+  // Compliance table
+  const compSection = document.getElementById('compSection');
+  const tbComp = document.getElementById('tbComp');
+  if (parsedData.compliance.length > 0) {
+    compSection.style.display = '';
+    tbComp.innerHTML = parsedData.compliance.map(r => `<tr style="background:#1a0f00;">
+      <td>${r.id}</td><td>${r.firstName} ${r.lastName}</td>
+      <td><span class="entity-pill">${r.entity}</span></td>
+      <td><span class="dept-pill">${r.dept}</span></td>
+      <td>${r.date ? fmtDate(r.date) : r.day}</td>
+      <td style="color:#ff6b35;font-weight:500;">${r._issue}</td>
+      <td>${r.total ? r.total.toFixed(2)+'h' : '—'}</td>
+      <td>${r.manager||''}</td></tr>`).join('');
+  } else {
+    compSection.style.display = 'none';
+  }
+
+  // ── OT totals
   const otTotalHours = parsedData.ot.reduce((s,r) => s + r.total, 0);
   const otTotalReg   = parsedData.ot.reduce((s,r) => s + r.reg,   0);
   const otTotalOT    = parsedData.ot.reduce((s,r) => s + r.ot,    0);
@@ -711,11 +881,35 @@ function runAnalysis() {
     <td class="total-val hi-dt">${dtTotalDT.toFixed(2)}h</td>
     <td></td></tr>`;
 
+  // Date range
+  const dateRange = showDateRange(hoursRows);
+
+  // Absent detection
+  detectAbsent(hoursRows, dateRange);
+
   document.getElementById('results').classList.add('show');
   document.getElementById('shareBtn').disabled = false;
   renderCharts();
   buildPdfButtons();
   document.getElementById('results').scrollIntoView({ behavior:'smooth' });
+
+  // Auto-save to history
+  const dateLabel = dateRange ? dateRange.label.replace(' → ','_to_') : new Date().toISOString().slice(0,10);
+  const histPayload = {
+    generatedAt: new Date().toISOString(),
+    entity: selectedEntity,
+    dateRange: dateRange ? dateRange.label : '',
+    summary: { error: parsedData.error.length, ot: parsedData.ot.length, dt: parsedData.dt.length, compliance: parsedData.compliance.length },
+    error: parsedData.error.map(toRow),
+    ot:    parsedData.ot.map(toRow),
+    dt:    parsedData.dt.map(toRow),
+    compliance: parsedData.compliance.map(r => ({
+      '工号': r.id, 'Entity': r.entity, '姓名': `${r.firstName||''} ${r.lastName||''}`,
+      '部门': r.dept, '日期': r.date ? fmtDate(r.date) : r.day,
+      '警告': r._issue, 'Manager': r.manager||''
+    }))
+  };
+  saveToHistory(histPayload, dateLabel);
 }
 
 // ── Charts ────────────────────────────────────────────────────────────────
@@ -897,7 +1091,7 @@ function toRow(r) {
     'Manager':r.manager, '问题':r._issue||'' };
 }
 function exportSection(type) {
-  const data = parsedData[type];
+  const data = type === 'compliance' ? parsedData.compliance : parsedData[type];
   if (!data?.length) return alert('没有数据');
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.map(toRow)),
@@ -911,6 +1105,144 @@ function exportAll() {
   XLSX.utils.book_append_sheet(wb, make(parsedData.ot,'Overtime'), 'Overtime');
   XLSX.utils.book_append_sheet(wb, make(parsedData.dt,'Double Time'), 'Double Time');
   XLSX.writeFile(wb, `isolved_分析报告_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ── Date range display ────────────────────────────────────────────────────
+function showDateRange(rows) {
+  const dates = rows.map(r => r['Date']).filter(Boolean).map(d => Math.floor(d)).filter(d => !isNaN(d));
+  if (!dates.length) return;
+  const minD = Math.min(...dates);
+  const maxD = Math.max(...dates);
+  const fmt = d => new Date((d-25569)*86400*1000).toISOString().slice(0,10);
+  const label = minD === maxD ? fmt(minD) : `${fmt(minD)} → ${fmt(maxD)}`;
+  document.getElementById('dateRangePill').textContent = label;
+  document.getElementById('dateRangeBar').style.display = 'flex';
+  return { minD, maxD, label };
+}
+
+// ── Absent detection ──────────────────────────────────────────────────────
+let absentData = [];
+let absentStatus = {}; // empId -> 'leave' | 'absent' | ''
+
+function detectAbsent(rows, dateRange) {
+  if (!dateRange) return;
+  const { minD, maxD } = dateRange;
+  // Get all working dates in range (exclude weekends? No — just check if employee has ANY record)
+  const presentIds = new Set(rows.map(r => parseInt(r['Employee Number'])));
+  // All active employees from EMP_DATA
+  const allEmps = Object.entries(EMP_DATA)
+    .filter(([key, v]) => key.startsWith(selectedEntity + '_') && !v.salary)
+    .map(([key, v]) => ({ id: parseInt(key.split('_')[1]), ...v }));
+
+  absentData = allEmps.filter(e => !presentIds.has(e.id));
+  absentStatus = {};
+
+  const tbAbsent = document.getElementById('tbAbsent');
+  if (absentData.length === 0) {
+    document.getElementById('absentSection').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('absentSection').style.display = '';
+  document.getElementById('tagAbsent').textContent = absentData.length + ' 人';
+
+  tbAbsent.innerHTML = absentData.map(e => `<tr class="absent-row" id="arow_${e.id}">
+    <td>${e.id}</td>
+    <td>${e.firstName||''} ${e.lastName||''}</td>
+    <td><span class="entity-pill">${e.entity}</span></td>
+    <td><span class="dept-pill">${e.dept}</span></td>
+    <td>${e.manager||''}</td>
+    <td>
+      <button class="absent-status" id="astatus_${e.id}" onclick="cycleStatus(${e.id})">待确认</button>
+    </td>
+  </tr>`).join('');
+}
+
+function cycleStatus(id) {
+  const states = ['', 'leave', 'absent'];
+  const labels = { '': '待确认', 'leave': '请假', 'absent': '未到岗' };
+  const cur = absentStatus[id] || '';
+  const next = states[(states.indexOf(cur) + 1) % states.length];
+  absentStatus[id] = next;
+  const btn = document.getElementById('astatus_' + id);
+  btn.textContent = labels[next];
+  btn.className = 'absent-status' + (next ? ' ' + next : '');
+}
+
+function exportAbsent() {
+  if (!absentData.length) return alert('没有缺勤数据');
+  const labels = { '': '待确认', 'leave': '请假', 'absent': '未到岗' };
+  const rows = absentData.map(e => ({
+    '工号': e.id, 'Entity': e.entity, '部门': e.dept,
+    'Manager': e.manager||'', '状态': labels[absentStatus[e.id]||'']
+  }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), '缺勤员工');
+  XLSX.writeFile(wb, `absent_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ── History ───────────────────────────────────────────────────────────────
+const HISTORY_KEY = 'isolved_history';
+let historyOpen = false;
+
+function toggleHistory() {
+  historyOpen = !historyOpen;
+  const panel = document.getElementById('historyPanel');
+  panel.classList.toggle('show', historyOpen);
+  if (historyOpen) renderHistoryList();
+}
+
+async function renderHistoryList() {
+  const list = document.getElementById('historyList');
+  list.innerHTML = '<div class="history-empty">加载中...</div>';
+  try {
+    // Get list of bins tagged with isolved-report
+    const resp = await fetch('https://api.jsonbin.io/v3/b?meta=false', {
+      headers: { 'X-Master-Key': JSONBIN_KEY }
+    });
+    if (!resp.ok) throw new Error();
+    const bins = await resp.json();
+    const reports = (bins||[])
+      .filter(b => b.snippetMeta?.name?.startsWith('hours-report-'))
+      .sort((a,b) => new Date(b.snippetMeta.createdAt) - new Date(a.snippetMeta.createdAt))
+      .slice(0, 20);
+
+    if (!reports.length) {
+      list.innerHTML = '<div class="history-empty">暂无历史记录</div>';
+      return;
+    }
+
+    list.innerHTML = reports.map(b => {
+      const name = b.snippetMeta.name || '';
+      const date = new Date(b.snippetMeta.createdAt).toLocaleString('zh-CN');
+      const viewerBase = window.location.origin + window.location.pathname.replace('index.html','');
+      const url = viewerBase + 'viewer.html?bin=' + b.id;
+      return `<div class="history-item" onclick="window.open('${url}','_blank')">
+        <div>
+          <div class="history-item-range">${name.replace('hours-report-','')}</div>
+          <div class="history-item-date">${date}</div>
+        </div>
+        <div class="history-item-stats">点击查看 →</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="history-empty">加载失败，请检查网络</div>';
+  }
+}
+
+async function saveToHistory(payload, dateLabel) {
+  try {
+    await fetch('https://api.jsonbin.io/v3/b', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Name': 'hours-report-' + dateLabel,
+        'X-Bin-Private': 'false'
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch(e) { console.warn('History save failed', e); }
 }
 
 // ── Init: load employee files on page load ────────────────────────────────
