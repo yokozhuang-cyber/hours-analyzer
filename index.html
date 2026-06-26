@@ -624,43 +624,39 @@ dz.addEventListener('drop', e => {
   if (e.dataTransfer.files.length) loadHoursFile(e.dataTransfer.files);
 });
 
-function loadHoursFile(files) {
-  hoursRows = [];
-  const fileArr = Array.from(files);
-  if (!fileArr.length) return;
-  let loaded = 0;
-  const names = fileArr.map(f => f.name).join(' + ');
-  document.getElementById('fileTag').textContent = '📄 ' + names;
-  document.getElementById('runBtn').disabled = true;
-  document.getElementById('runBtn').textContent = '⏳ 读取中...';
-
-  fileArr.forEach(file => {
+function readFileAsRows(file) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = evt => {
       try {
         const wb = XLSX.read(evt.target.result, { type:'binary' });
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:null });
-        hoursRows = hoursRows.concat(rows);
-      } catch(err) {
-        console.error('Failed to read', file.name, err);
-      }
-      loaded++;
-      if (loaded === fileArr.length) {
-        document.getElementById('runBtn').disabled = false;
-        document.getElementById('runBtn').textContent = fileArr.length > 1
-          ? `▶ 开始分析（${fileArr.length} 个文件，${hoursRows.length} 行数据）`
-          : `▶ 开始分析`;
-      }
+        resolve(rows);
+      } catch(e) { reject(e); }
     };
-    reader.onerror = () => {
-      loaded++;
-      if (loaded === fileArr.length && hoursRows.length > 0) {
-        document.getElementById('runBtn').disabled = false;
-        document.getElementById('runBtn').textContent = '▶ 开始分析';
-      }
-    };
+    reader.onerror = () => reject(new Error('Read error'));
     reader.readAsBinaryString(file);
   });
+}
+
+async function loadHoursFile(files) {
+  const fileArr = Array.from(files);
+  if (!fileArr.length) return;
+  const names = fileArr.map(f => f.name).join(' + ');
+  document.getElementById('fileTag').textContent = '📄 ' + names;
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('runBtn').textContent = '⏳ 读取中...';
+  try {
+    const allRows = await Promise.all(fileArr.map(readFileAsRows));
+    hoursRows = allRows.flat();
+    document.getElementById('runBtn').disabled = false;
+    document.getElementById('runBtn').textContent = fileArr.length > 1
+      ? `▶ 开始分析（${fileArr.length} 个文件，${hoursRows.length} 行数据）`
+      : '▶ 开始分析';
+  } catch(e) {
+    console.error(e);
+    document.getElementById('runBtn').textContent = '❌ 读取失败，请重试';
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -1144,12 +1140,23 @@ let absentStatus = {}; // empId -> 'leave' | 'absent' | ''
 
 function detectAbsent(rows, dateRange) {
   if (!dateRange) return;
-  const { minD, maxD } = dateRange;
-  // Get all working dates in range (exclude weekends? No — just check if employee has ANY record)
-  const presentIds = new Set(rows.map(r => parseInt(r['Employee Number'])));
-  // All active employees from EMP_DATA
+  // Detect which sub-entities are in the uploaded file based on employee ID ranges
+  const uploadedIds = rows.map(r => parseInt(r['Employee Number'])).filter(n => !isNaN(n));
+  const hasLinkW    = uploadedIds.some(id => id < 1000);
+  const hasTechChain = uploadedIds.some(id => id >= 1000);
+
+  const presentIds = new Set(uploadedIds);
+
+  // Only check employees from sub-entities that are represented in the upload
   const allEmps = Object.entries(EMP_DATA)
-    .filter(([key, v]) => key.startsWith(selectedEntity + '_') && !v.salary)
+    .filter(([key, v]) => {
+      if (!key.startsWith(selectedEntity + '_')) return false;
+      if (v.salary) return false;
+      const id = parseInt(key.split('_')[1]);
+      if (id >= 1000 && !hasTechChain) return false;  // TechChain not uploaded
+      if (id < 1000 && !hasLinkW) return false;        // LinkW not uploaded
+      return true;
+    })
     .map(([key, v]) => ({ id: parseInt(key.split('_')[1]), ...v }));
 
   absentData = allEmps.filter(e => !presentIds.has(e.id));
