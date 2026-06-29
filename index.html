@@ -898,8 +898,15 @@ function runAnalysis() {
   // Date range
   const dateRange = showDateRange(hoursRows);
 
+  // Build manager map from hours data
+  const managerMap = {};
+  hoursRows.forEach(r => {
+    const id = parseInt(r['Employee Number']);
+    if (!isNaN(id) && r['Employee Manager']) managerMap[id] = r['Employee Manager'];
+  });
+
   // Absent detection
-  detectAbsent(hoursRows, dateRange);
+  detectAbsent(hoursRows, dateRange, managerMap);
 
   document.getElementById('results').classList.add('show');
   document.getElementById('shareBtn').disabled = false;
@@ -1138,7 +1145,7 @@ function showDateRange(rows) {
 let absentData = [];
 let absentStatus = {}; // empId -> 'leave' | 'absent' | ''
 
-function detectAbsent(rows, dateRange) {
+function detectAbsent(rows, dateRange, managerMap = {}) {
   if (!dateRange) return;
   // Detect which sub-entities are in the uploaded file based on employee ID ranges
   const uploadedIds = rows.map(r => parseInt(r['Employee Number'])).filter(n => !isNaN(n));
@@ -1176,7 +1183,7 @@ function detectAbsent(rows, dateRange) {
     <td>${((e.firstName||'') + ' ' + (e.lastName||'')).trim() || '—'}</td>
     <td><span class="entity-pill">${e.entity}</span></td>
     <td><span class="dept-pill">${e.dept}</span></td>
-    <td>${e.manager||''}</td>
+    <td>${managerMap[e.id] || e.manager || ''}</td>
     <td>
       <button class="absent-status" id="astatus_${e.id}" onclick="cycleStatus(${e.id})">待确认</button>
     </td>
