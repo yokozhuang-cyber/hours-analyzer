@@ -899,7 +899,7 @@ function runAnalysis() {
   const dateRange = showDateRange(hoursRows);
 
   // Build manager map from hours data
-  const managerMap = {};
+  managerMap = {};
   hoursRows.forEach(r => {
     const id = parseInt(r['Employee Number']);
     if (!isNaN(id) && r['Employee Manager']) managerMap[id] = r['Employee Manager'];
@@ -928,6 +928,14 @@ function runAnalysis() {
       '工号': r.id, 'Entity': r.entity, '姓名': `${r.firstName||''} ${r.lastName||''}`,
       '部门': r.dept, '日期': r.date ? fmtDate(r.date) : r.day,
       '警告': r._issue, 'Manager': r.manager||''
+    })),
+    absent: absentData.map(e => ({
+      '工号': e.id,
+      '姓名': ((e.firstName||'') + ' ' + (e.lastName||'')).trim(),
+      'Entity': e.entity,
+      '部门': e.dept,
+      'Manager': managerMap[e.id] || e.manager || '',
+      '状态': ({'':'待确认','leave':'请假','absent':'未到岗'})[absentStatus[e.id]||'']
     }))
   };
   saveToHistory(histPayload, dateLabel);
@@ -1047,17 +1055,27 @@ async function generateShareLink() {
   btn.textContent = '⏳ 生成中...';
   document.getElementById('shareStatus').textContent = '正在上传数据...';
 
+  const labels = { '': '待确认', 'leave': '请假', 'absent': '未到岗' };
   const payload = {
     generatedAt: new Date().toISOString(),
     entity: selectedEntity,
     summary: {
       error: parsedData.error.length,
       ot: parsedData.ot.length,
-      dt: parsedData.dt.length
+      dt: parsedData.dt.length,
+      absent: absentData.length
     },
     error: parsedData.error.map(toRow),
     ot:    parsedData.ot.map(toRow),
-    dt:    parsedData.dt.map(toRow)
+    dt:    parsedData.dt.map(toRow),
+    absent: absentData.map(e => ({
+      '工号': e.id,
+      '姓名': ((e.firstName||'') + ' ' + (e.lastName||'')).trim(),
+      'Entity': e.entity,
+      '部门': e.dept,
+      'Manager': managerMap[e.id] || e.manager || '',
+      '状态': labels[absentStatus[e.id] || '']
+    }))
   };
 
   try {
@@ -1144,8 +1162,9 @@ function showDateRange(rows) {
 // ── Absent detection ──────────────────────────────────────────────────────
 let absentData = [];
 let absentStatus = {}; // empId -> 'leave' | 'absent' | ''
+let managerMap = {};
 
-function detectAbsent(rows, dateRange, managerMap = {}) {
+function detectAbsent(rows, dateRange, mgMap = {}) {
   if (!dateRange) return;
   // Detect which sub-entities are in the uploaded file based on employee ID ranges
   const uploadedIds = rows.map(r => parseInt(r['Employee Number'])).filter(n => !isNaN(n));
@@ -1183,7 +1202,7 @@ function detectAbsent(rows, dateRange, managerMap = {}) {
     <td>${((e.firstName||'') + ' ' + (e.lastName||'')).trim() || '—'}</td>
     <td><span class="entity-pill">${e.entity}</span></td>
     <td><span class="dept-pill">${e.dept}</span></td>
-    <td>${managerMap[e.id] || e.manager || ''}</td>
+    <td>${mgMap[e.id] || e.manager || ''}</td>
     <td>
       <button class="absent-status" id="astatus_${e.id}" onclick="cycleStatus(${e.id})">待确认</button>
     </td>
