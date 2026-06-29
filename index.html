@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LinkW考勤分析工具</title>
+<title>iSolved 考勤分析工具</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
@@ -1088,6 +1088,16 @@ async function generateShareLink() {
       '部门': e.dept,
       'Manager': managerMap[e.id] || e.manager || '',
       '状态': labels[absentStatus[e.id] || '']
+    })),
+    compliance: parsedData.compliance.map(r => ({
+      '工号': r.id,
+      '姓名': ((r.firstName||'') + ' ' + (r.lastName||'')).trim(),
+      'Entity': r.entity,
+      '部门': r.dept,
+      '日期': r.date ? fmtDate(r.date) : (r.day||''),
+      '警告': r._issue,
+      '涉及工时': r.total ? parseFloat(r.total.toFixed(2)) : null,
+      'Manager': r.manager||''
     }))
   };
 
