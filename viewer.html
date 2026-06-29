@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>考勤分析报告</title>
+<title>LinkW考勤分析报告</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
 :root{--bg:#0e0e0f;--surface:#161618;--border:#2a2a2e;--accent:#e8ff47;--text:#f0f0f0;--muted:#666;--err-bg:#1a0a0a;--err:#ff4444;--ot-bg:#0a1220;--ot:#47c8ff;--dt-bg:#1a0f00;--dt:#ff9900;}
@@ -21,7 +21,7 @@ h1 span{color:var(--text);}
 .loading-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.2;}}
 
-.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px;}
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:32px;}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;}
 .stat-card.err{border-color:var(--err);background:var(--err-bg);}
 .stat-card.ot{border-color:var(--ot);background:var(--ot-bg);}
@@ -86,20 +86,22 @@ tr:last-child td{border-bottom:none;}
   .status-pill.leave{background:#0a1a0a;color:#44cc77;border:1px solid #44cc77;}
   .status-pill.absent{background:var(--err-bg);color:var(--err);border:1px solid var(--err);}
   .status-pill.pending{background:#1e1e28;color:#a78bfa;border:1px solid #3a3a5a;}
+
+  .comp-row td{background:#1a0f00;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="subtitle">LinkW Logistics — 考勤分析报告</div>
-    <h1><span>Hours</span> Report <span class="readonly-badge">只读</span></h1>
+    <div class="subtitle">LinkW Logistics USA — 考勤分析报告</div>
+    <h1><span>Hours</span> Report <span class="readonly-badge">只读 (有问题找Yoko)</span></h1>
     <div class="meta" id="metaInfo">加载中...</div>
   </header>
 
   <div class="loading" id="loading">
     <div class="loading-dot"></div>
-    <div style="margin-top:16px;font-size:12px;">正在加载报告...</div>
+    <div style="margin-top:16px;font-size:12px;">正在加载报告...你别急嗷 不然要你好看</div>
   </div>
 
   <div id="reportContent" style="display:none;">
@@ -107,6 +109,7 @@ tr:last-child td{border-bottom:none;}
       <div class="stat-card err"><div class="stat-label">⚠ 打卡异常</div><div class="stat-value" id="sErr">0</div></div>
       <div class="stat-card ot"><div class="stat-label">○ Overtime</div><div class="stat-value" id="sOT">0</div></div>
       <div class="stat-card dt"><div class="stat-label">◎ Double Time</div><div class="stat-value" id="sDT">0</div></div>
+      <div class="stat-card" style="border-color:#ff6b35;background:#1a0f00;"><div class="stat-label" style="color:#ff6b35;">⚖ 合规警告</div><div class="stat-value" id="sComp" style="color:#ff6b35;">0</div></div>
       <div class="stat-card" style="border-color:#a78bfa;background:#0f0a1a;"><div class="stat-label" style="color:#a78bfa;">👤 缺勤员工</div><div class="stat-value" id="sAbsent" style="color:#a78bfa;">0</div></div>
     </div>
 
@@ -153,6 +156,16 @@ tr:last-child td{border-bottom:none;}
       </div>
     </div>
 
+
+
+    <!-- Compliance -->
+    <div class="section" id="compSection" style="display:none;">
+      <div class="sec-title" style="color:#ff6b35;margin-bottom:14px;">⚖ 合规警告</div>
+      <div class="table-wrap">
+        <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>警告类型</th><th>涉及工时</th><th>Manager</th></tr></thead>
+        <tbody id="tbComp"></tbody></table>
+      </div>
+    </div>
 
     <!-- Absent -->
     <div class="section" id="absentSection" style="display:none;">
@@ -369,6 +382,7 @@ async function loadReport() {
     document.getElementById('sErr').textContent = (r.error||[]).length;
     document.getElementById('sOT').textContent  = (r.ot||[]).length;
     document.getElementById('sDT').textContent  = (r.dt||[]).length;
+    if (document.getElementById('sComp')) document.getElementById('sComp').textContent = (r.compliance||[]).length;
     if (document.getElementById('sAbsent')) document.getElementById('sAbsent').textContent = (r.absent||[]).length;
 
     // Tables
@@ -427,6 +441,23 @@ async function loadReport() {
       <td class="total-val hi-ot">${dtTotalOT.toFixed(2)}h</td>
       <td class="total-val hi-dt">${dtTotalDT.toFixed(2)}h</td>
       <td></td></tr>`;
+
+    // Compliance section
+    const compliance = r.compliance || [];
+    if (compliance.length > 0) {
+      document.getElementById('compSection').style.display = '';
+      if (document.getElementById('sComp')) document.getElementById('sComp').textContent = compliance.length;
+      document.getElementById('tbComp').innerHTML = compliance.map(c => `<tr class="comp-row">
+        <td>${c['工号']||''}</td>
+        <td>${c['姓名']||'—'}</td>
+        <td>${ep(c['Entity']||'')}</td>
+        <td>${dp(c['部门']||'')}</td>
+        <td>${c['日期']||''}</td>
+        <td style="color:#ff6b35;font-weight:500;">${c['警告']||''}</td>
+        <td>${c['涉及工时'] ? c['涉及工时']+'h' : '—'}</td>
+        <td>${c['Manager']||''}</td>
+      </tr>`).join('');
+    }
 
     // Absent section
     const absent = r.absent || [];
