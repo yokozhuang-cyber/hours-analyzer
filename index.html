@@ -900,9 +900,22 @@ function runAnalysis() {
 
   // Build manager map from hours data
   managerMap = {};
+  const deptManagerMap = {}; // dept -> manager (fallback)
   hoursRows.forEach(r => {
     const id = parseInt(r['Employee Number']);
-    if (!isNaN(id) && r['Employee Manager']) managerMap[id] = r['Employee Manager'];
+    if (!isNaN(id) && r['Employee Manager']) {
+      managerMap[id] = r['Employee Manager'];
+      // Also map dept -> manager as fallback
+      const info = getEmpInfo(id);
+      if (info.dept && r['Employee Manager']) deptManagerMap[info.dept] = r['Employee Manager'];
+    }
+  });
+  // Fill absent employees using dept-based fallback
+  Object.entries(EMP_DATA).forEach(([key, v]) => {
+    const id = parseInt(key.split('_')[1]);
+    if (!managerMap[id] && v.dept && deptManagerMap[v.dept]) {
+      managerMap[id] = deptManagerMap[v.dept];
+    }
   });
 
   // Absent detection
