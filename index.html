@@ -174,9 +174,14 @@ tr:last-child td{border-bottom:none;}
   .history-btn:hover{border-color:var(--accent);color:var(--accent);}
   /* Absent */
   .absent-row td{background:#0f0a1a;}
-  .absent-status{font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;border:1px solid #3a3a5a;color:#a78bfa;background:#1e1e28;letter-spacing:1px;}
+  .absent-status{font-size:11px;padding:4px 10px;border-radius:4px;cursor:pointer;border:1px solid #3a3a5a;color:#a78bfa;background:#1e1e28;letter-spacing:1px;white-space:nowrap;font-family:'JetBrains Mono','Noto Sans SC',monospace;outline:none;appearance:none;-webkit-appearance:none;min-width:120px;}
+  .absent-status option{background:#1e1e28;color:#e0e0e0;}
   .absent-status.leave{border-color:#44cc77;color:#44cc77;background:#0a1a0a;}
   .absent-status.absent{border-color:var(--err);color:var(--err);background:var(--err-bg);}
+  .absent-status.terminated{border-color:#666;color:#999;background:#1a1a1a;}
+  .absent-status.tuesday{border-color:#47c8ff;color:#47c8ff;background:#0a1220;}
+  .absent-status.noapproval{border-color:#ff9900;color:#ff9900;background:#1a0f00;}
+  .absent-status.special{border-color:#c47aff;color:#c47aff;background:#15081f;}
   /* History panel */
   .history-panel{max-width:1100px;margin:0 auto 28px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:none;}
   .history-panel.show{display:block;}
@@ -948,7 +953,7 @@ function runAnalysis() {
       'Entity': e.entity,
       '部门': e.dept,
       'Manager': managerMap[e.id] || e.manager || '',
-      '状态': ({'':'待确认','leave':'请假','absent':'未到岗'})[absentStatus[e.id]||'']
+      '状态': ({'':'待确认','leave':'请假','absent':'未到岗','terminated':'已离职','tuesday':'周二才上班','noapproval':'请假未提审批','special':'特殊情况'})[absentStatus[e.id]||'']
     }))
   };
   saveToHistory(histPayload, dateLabel);
@@ -1068,7 +1073,7 @@ async function generateShareLink() {
   btn.textContent = '⏳ 生成中...';
   document.getElementById('shareStatus').textContent = '正在上传数据...';
 
-  const labels = { '': '待确认', 'leave': '请假', 'absent': '未到岗' };
+  const labels = { '': '待确认', 'leave': '请假', 'absent': '未到岗', 'terminated': '已离职', 'tuesday': '周二才上班', 'noapproval': '请假未提审批', 'special': '特殊情况' };
   const payload = {
     generatedAt: new Date().toISOString(),
     entity: selectedEntity,
@@ -1227,25 +1232,28 @@ function detectAbsent(rows, dateRange, mgMap = {}) {
     <td><span class="dept-pill">${e.dept}</span></td>
     <td>${mgMap[e.id] || e.manager || ''}</td>
     <td>
-      <button class="absent-status" id="astatus_${e.id}" onclick="cycleStatus(${e.id})">待确认</button>
+      <select class="absent-status" id="astatus_${e.id}" onchange="setStatus(${e.id}, this.value)">
+        <option value="">待确认</option>
+        <option value="leave">请假</option>
+        <option value="absent">未到岗</option>
+        <option value="terminated">已离职</option>
+        <option value="tuesday">周二才上班</option>
+        <option value="noapproval">请假未提审批</option>
+        <option value="special">特殊情况</option>
+      </select>
     </td>
   </tr>`).join('');
 }
 
-function cycleStatus(id) {
-  const states = ['', 'leave', 'absent'];
-  const labels = { '': '待确认', 'leave': '请假', 'absent': '未到岗' };
-  const cur = absentStatus[id] || '';
-  const next = states[(states.indexOf(cur) + 1) % states.length];
-  absentStatus[id] = next;
-  const btn = document.getElementById('astatus_' + id);
-  btn.textContent = labels[next];
-  btn.className = 'absent-status' + (next ? ' ' + next : '');
+function setStatus(id, value) {
+  absentStatus[id] = value;
+  const sel = document.getElementById('astatus_' + id);
+  sel.className = 'absent-status' + (value ? ' ' + value : '');
 }
 
 function exportAbsent() {
   if (!absentData.length) return alert('没有缺勤数据');
-  const labels = { '': '待确认', 'leave': '请假', 'absent': '未到岗' };
+  const labels = { '': '待确认', 'leave': '请假', 'absent': '未到岗', 'terminated': '已离职', 'tuesday': '周二才上班', 'noapproval': '请假未提审批', 'special': '特殊情况' };
   const rows = absentData.map(e => ({
     '工号': e.id, 'Entity': e.entity, '部门': e.dept,
     'Manager': e.manager||'', '状态': labels[absentStatus[e.id]||'']
