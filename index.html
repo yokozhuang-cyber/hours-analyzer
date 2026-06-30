@@ -692,7 +692,8 @@ function runAnalysis() {
         entity: info.entity,
         salary: info.salary,
         total:0, reg:0, ot:0, dt:0,
-        recordCount:0, missingStart:false, missingEnd:false, shortRecord:false, missedClockOut:false
+        recordCount:0, missingStart:false, missingEnd:false, shortRecord:false, missedClockOut:false,
+        records:[]
       };
     }
     const g = grouped[key];
@@ -702,6 +703,7 @@ function runAnalysis() {
     g.ot    += parseFloat(r['Overtime']    || 0);
     g.dt    += parseFloat(r['Double Time'] || 0);
     g.recordCount++;
+    if (r['Start'] && r['End']) g.records.push({ start:r['Start'], end:r['End'] });
     if (!r['Start'] || r['Start']===null) g.missingStart = true;
     if (!r['End']   || r['End']===null)   g.missingEnd   = true;
     if (recHours < 1 && r['Start'] && r['End']) g.shortRecord = true;
@@ -799,6 +801,47 @@ function runAnalysis() {
         <td class="hi-ot">${fmtH(r.ot)}</td>
         <td class="hi-dt">${fmtH(r.dt)}</td>
         <td>${r.manager}</td></tr>`).join('');
+
+  // ── Compliance: Meal Break violations (CA law) ──────────────────────────
+  Object.values(grouped).forEach(g => {
+    if (g.salary) return;
+    if (g.missingStart || g.missingEnd || g.shortRecord || g.missedClockOut) return; // skip unreliable punch data
+    if (g.records.length < 2) return; // need at least 2 segments to find a meal gap
+
+    // Sort records by start time, find gap between segments
+    const sorted = [...g.records].sort((a,b) => a.start - b.start);
+    const gaps = [];
+    for (let i = 1; i < sorted.length; i++) {
+      const gapDays = sorted[i].start - sorted[i-1].end;
+      if (gapDays > 0) gaps.push(gapDays * 24 * 60); // minutes
+    }
+
+    const totalHours = g.total;
+    const firstMealGap = gaps[0] || 0;
+
+    // Rule 1: worked >5h, first meal break must be ≥30 min
+    if (totalHours > 5 && firstMealGap < 30) {
+      parsedData.compliance.push({
+        id:g.id, firstName:g.firstName, lastName:g.lastName, dept:g.dept, entity:g.entity, manager:g.manager,
+        total: parseFloat(totalHours.toFixed(2)),
+        date: g.date, day: g.day,
+        _issue: `午休不足30分钟（实际${firstMealGap.toFixed(0)}分钟，工作${totalHours.toFixed(1)}h，需赔1小时Meal Premium）`
+      });
+    }
+
+    // Rule 2: worked >10h, need a SECOND meal break ≥30 min
+    if (totalHours > 10) {
+      const secondMealGap = gaps[1] || 0;
+      if (gaps.length < 2 || secondMealGap < 30) {
+        parsedData.compliance.push({
+          id:g.id, firstName:g.firstName, lastName:g.lastName, dept:g.dept, entity:g.entity, manager:g.manager,
+          total: parseFloat(totalHours.toFixed(2)),
+          date: g.date, day: g.day,
+          _issue: `工作超10小时缺少第二次午休（工作${totalHours.toFixed(1)}h，需赔1小时Meal Premium）`
+        });
+      }
+    }
+  });
 
   // ── Compliance: Weekly 40h OT & 7th consecutive day ────────────────────
   // Group by employee + ISO week
