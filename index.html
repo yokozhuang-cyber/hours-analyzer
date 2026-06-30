@@ -1229,7 +1229,7 @@ function detectAbsent(rows, dateRange, mgMap = {}) {
     <td><span class="dept-pill">${e.dept}</span></td>
     <td>${mgMap[e.id] || e.manager || ''}</td>
     <td>
-      <select class="absent-status" id="astatus_${e.id}" onchange="setStatus(${e.id}, this.value)">
+      <select class="absent-status" id="astatus_${e.id}" onchange="setAbsentStatus(${e.id}, this.value)">
         <option value="">待确认</option>
         <option value="leave">请假</option>
         <option value="absent">未到岗</option>
@@ -1242,7 +1242,7 @@ function detectAbsent(rows, dateRange, mgMap = {}) {
   </tr>`).join('');
 }
 
-function setStatus(id, value) {
+function setAbsentStatus(id, value) {
   absentStatus[id] = value;
   const sel = document.getElementById('astatus_' + id);
   sel.className = 'absent-status' + (value ? ' ' + value : '');
