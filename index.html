@@ -693,11 +693,13 @@ function runAnalysis() {
         salary: info.salary,
         total:0, reg:0, ot:0, dt:0,
         recordCount:0, missingStart:false, missingEnd:false, shortRecord:false, missedClockOut:false,
-        records:[]
+        records:[], isHoliday:false
       };
     }
     const g = grouped[key];
     const recHours = parseFloat(r['Hours'] || 0);
+    // Mark as holiday if Holiday column has value
+    if (r['Holiday'] && parseFloat(r['Holiday']) > 0) g.isHoliday = true;
     g.total += recHours;
     g.reg   += parseFloat(r['Hourly']      || 0);
     g.ot    += parseFloat(r['Overtime']    || 0);
@@ -722,6 +724,9 @@ function runAnalysis() {
   parsedData = { error:[], ot:[], dt:[], compliance:[] };
   Object.values(grouped).forEach(g => {
     // Check record count: Hourly should have exactly 2, Salary exactly 1
+    // Skip punch anomaly check for holidays
+    if (g.isHoliday) return;
+
     const expectedRecords = g.salary ? 1 : 2;
     const issueList = [];
 
