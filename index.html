@@ -755,17 +755,6 @@ function runAnalysis() {
   // Count unique employees (not person-day records)
   const uniqueEmps = new Set(allGrouped.map(g => g.id)).size;
 
-  // Update all stats AFTER compliance calculations complete
-  document.getElementById('sErr').textContent   = new Set(parsedData.error.map(r => r.id)).size;
-  document.getElementById('sComp').textContent  = parsedData.compliance.length;
-  document.getElementById('tagComp').textContent = parsedData.compliance.length + ' 条';
-  document.getElementById('sOT').textContent    = new Set(parsedData.ot.map(r => r.id)).size;
-  document.getElementById('sDT').textContent    = new Set(parsedData.dt.map(r => r.id)).size;
-  document.getElementById('sTotal').textContent = uniqueEmps;
-  document.getElementById('tagErr').textContent = new Set(parsedData.error.map(r => r.id)).size + ' 人';
-  document.getElementById('tagOT').textContent  = new Set(parsedData.ot.map(r => r.id)).size + ' 人';
-  document.getElementById('tagDT').textContent  = new Set(parsedData.dt.map(r => r.id)).size + ' 人';
-
   // Render tables
   document.getElementById('tbErr').innerHTML = parsedData.error.length === 0
     ? `<tr><td colspan="9" class="empty">✓ 无打卡异常</td></tr>`
@@ -914,6 +903,17 @@ function runAnalysis() {
   } else {
     compSection.style.display = 'none';
   }
+
+  // Update all stats after ALL compliance calculations
+  document.getElementById('sErr').textContent   = new Set(parsedData.error.map(r => r.id)).size;
+  document.getElementById('sComp').textContent  = parsedData.compliance.length;
+  document.getElementById('tagComp').textContent = parsedData.compliance.length + ' 条';
+  document.getElementById('sOT').textContent    = new Set(parsedData.ot.map(r => r.id)).size;
+  document.getElementById('sDT').textContent    = new Set(parsedData.dt.map(r => r.id)).size;
+  document.getElementById('sTotal').textContent = uniqueEmps;
+  document.getElementById('tagErr').textContent = new Set(parsedData.error.map(r => r.id)).size + ' 人';
+  document.getElementById('tagOT').textContent  = new Set(parsedData.ot.map(r => r.id)).size + ' 人';
+  document.getElementById('tagDT').textContent  = new Set(parsedData.dt.map(r => r.id)).size + ' 人';
 
   // ── OT totals
   const otTotalHours = parsedData.ot.reduce((s,r) => s + r.total, 0);
