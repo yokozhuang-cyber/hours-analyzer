@@ -818,7 +818,7 @@ function runAnalysis() {
         id:g.id, firstName:g.firstName, lastName:g.lastName, dept:g.dept, entity:g.entity, manager:g.manager,
         total: parseFloat(totalHours.toFixed(2)),
         date: g.date, day: g.day,
-        _issue: `午休不足30分钟（实际${firstMealGap.toFixed(0)}分钟，工作${totalHours.toFixed(1)}h，需赔1小时Meal Premium）`
+        _issue: `午休不足30分钟（实际${firstMealGap.toFixed(0)}分钟，工作${totalHours.toFixed(1)}h）`
       });
     }
 
@@ -830,7 +830,7 @@ function runAnalysis() {
           id:g.id, firstName:g.firstName, lastName:g.lastName, dept:g.dept, entity:g.entity, manager:g.manager,
           total: parseFloat(totalHours.toFixed(2)),
           date: g.date, day: g.day,
-          _issue: `工作超10小时缺少第二次午休（工作${totalHours.toFixed(1)}h，需赔1小时Meal Premium）`
+          _issue: `工作超10小时缺少第二次午休（工作${totalHours.toFixed(1)}h）`
         });
       }
     }
