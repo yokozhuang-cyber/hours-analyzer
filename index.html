@@ -754,9 +754,8 @@ function runAnalysis() {
   const allGrouped = Object.values(grouped);
   // Count unique employees (not person-day records)
   const uniqueEmps = new Set(allGrouped.map(g => g.id)).size;
-  // Separate compliance alerts from punch errors
-  const punchErrors = parsedData.error.filter(r => !r._compliance);
-  const complianceAlerts = parsedData.error.filter(r => r._compliance);
+
+  // Update all stats AFTER compliance calculations complete
   document.getElementById('sErr').textContent   = new Set(parsedData.error.map(r => r.id)).size;
   document.getElementById('sComp').textContent  = parsedData.compliance.length;
   document.getElementById('tagComp').textContent = parsedData.compliance.length + ' 条';
