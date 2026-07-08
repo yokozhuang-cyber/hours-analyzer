@@ -813,27 +813,16 @@ function runAnalysis() {
     const firstMealGap = gaps[0] || 0;
 
     // Rule 1: worked >5h, first meal break must be ≥30 min
-    if (totalHours > 5 && firstMealGap < 30) {
+    if (totalHours > 5 && firstMealGap < 29.5) {
       parsedData.compliance.push({
         id:g.id, firstName:g.firstName, lastName:g.lastName, dept:g.dept, entity:g.entity, manager:g.manager,
         total: parseFloat(totalHours.toFixed(2)),
         date: g.date, day: g.day,
-        _issue: `午休不足30分钟（实际${firstMealGap.toFixed(0)}分钟，工作${totalHours.toFixed(1)}h）`
+        _issue: `午休不足30分钟（实际${firstMealGap.toFixed(0)}分钟，工作${totalHours.toFixed(1)}h，需赔1小时Meal Premium）`
       });
     }
 
-    // Rule 2: worked >10h, need a SECOND meal break ≥30 min
-    if (totalHours > 10) {
-      const secondMealGap = gaps[1] || 0;
-      if (gaps.length < 2 || secondMealGap < 30) {
-        parsedData.compliance.push({
-          id:g.id, firstName:g.firstName, lastName:g.lastName, dept:g.dept, entity:g.entity, manager:g.manager,
-          total: parseFloat(totalHours.toFixed(2)),
-          date: g.date, day: g.day,
-          _issue: `工作超10小时缺少第二次午休（工作${totalHours.toFixed(1)}h）`
-        });
-      }
-    }
+    // Rule 2 (second meal break) removed per user request
   });
 
   // ── Compliance: Weekly 40h OT & 7th consecutive day ────────────────────
