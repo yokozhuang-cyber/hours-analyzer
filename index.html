@@ -470,11 +470,13 @@ function loadFallback() {
   const raw = [
         // CA - LinkW Logistics USA Inc
         [195,'CA','Executive',true],
+        [232,'CA','Transfer',false],
         [224,'CA','Unloading',false],
         [18,'CA','HR',true],
         [191,'CA','Transfer',false],
         [129,'CA','QC',true],
         [174,'CA','Transfer',false],
+        [231,'CA','Shipping',false],
         [154,'CA','Accounting',false],
         [193,'CA','Shipping',false],
         [40,'CA','Dispatch',false],
@@ -817,7 +819,7 @@ function runAnalysis() {
         id:g.id, firstName:g.firstName, lastName:g.lastName, dept:g.dept, entity:g.entity, manager:g.manager,
         total: parseFloat(totalHours.toFixed(2)),
         date: g.date, day: g.day,
-        _issue: `午休不足30分钟（实际${firstMealGap.toFixed(0)}分钟，工作${totalHours.toFixed(1)}h）`
+        _issue: `午休不足30分钟（实际${firstMealGap.toFixed(0)}分钟，工作${totalHours.toFixed(1)}h，需赔1小时Meal Premium）`
       });
     }
 
