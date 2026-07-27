@@ -195,6 +195,12 @@ tr:last-child td{border-bottom:none;}
   .history-item-range{font-size:12px;color:var(--accent);}
   .history-item-stats{font-size:11px;color:var(--muted);margin-left:auto;}
   .history-empty{padding:24px;text-align:center;color:var(--muted);font-size:12px;}
+
+  .feishu-bar{max-width:1100px;margin:0 auto 20px;background:#0a1a0a;border:1px solid #44cc77;border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .feishu-status{font-size:11px;color:#44cc77;letter-spacing:1px;}
+  .feishu-sync-btn{font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:11px;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #44cc77;color:#44cc77;background:#0a1a0a;letter-spacing:1px;text-transform:uppercase;transition:all .15s;}
+  .feishu-sync-btn:hover{background:#0f2a0f;}
+  .feishu-sync-btn:disabled{opacity:.4;cursor:not-allowed;}
 </style>
 </head>
 <body>
@@ -264,6 +270,15 @@ tr:last-child td{border-bottom:none;}
 <button class="run-btn" id="runBtn" disabled onclick="runAnalysis()">请先上传文件</button>
 
 <div class="results" id="results">
+
+
+  <!-- Feishu Leave Sync -->
+  <div class="feishu-bar" id="feishuBar" style="display:none;">
+    <span style="font-size:16px;">💬</span>
+    <span class="feishu-status" id="feishuStatus">飞书请假表格已连接</span>
+    <button class="feishu-sync-btn" id="feishuSyncBtn" onclick="syncLeaveFromFeishu()">🔄 同步请假状态</button>
+    <span style="font-size:11px;color:var(--muted);margin-left:4px;" id="feishuSyncResult"></span>
+  </div>
 
   <!-- Date range + history -->
   <div class="date-range-bar" id="dateRangeBar" style="display:none;">
@@ -1208,6 +1223,174 @@ function exportAll() {
   XLSX.writeFile(wb, `isolved_分析报告_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
+// ── Feishu Leave Integration ──────────────────────────────────────────────
+const FEISHU_APP_ID      = 'cli_aaed27581078dbd4';
+const FEISHU_APP_SECRET  = 'sS903aDOSAm6gwbjWHh7EchCioebzoBH';
+const FEISHU_WIKI_TOKEN  = 'HO3BwQ5qziWVqJkJ49Oc5m6LnBZ';
+const FEISHU_TABLE_EMP   = 'tblBw5UnttDjhxHq'; // 员工汇总表（打卡号+Legal name+飞书姓名）
+const FEISHU_TABLE_LEAVE = 'tblu2nUD0YoR8d9w'; // 请假记录表
+const FEISHU_API         = 'https://open.feishu.cn/open-apis';
+
+let feishuToken   = null;
+let feishuAppToken = null;
+
+// feishuName (lower) -> empId
+let feishuNameToId = {};
+
+async function getFeishuToken() {
+  const resp = await fetch(`${FEISHU_API}/auth/v3/tenant_access_token/internal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app_id: FEISHU_APP_ID, app_secret: FEISHU_APP_SECRET })
+  });
+  const data = await resp.json();
+  if (data.code !== 0) throw new Error('Token failed: ' + data.msg);
+  return data.tenant_access_token;
+}
+
+async function getFeishuAppToken(token) {
+  const resp = await fetch(`${FEISHU_API}/wiki/v2/spaces/get_node?token=${FEISHU_WIKI_TOKEN}`, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  const data = await resp.json();
+  if (data.code !== 0) throw new Error('Wiki node failed: ' + data.msg);
+  return data.data?.node?.obj_token;
+}
+
+async function fetchAllRecords(token, appToken, tableId) {
+  let all = [], pageToken = null;
+  do {
+    const url = `${FEISHU_API}/bitable/v1/apps/${appToken}/tables/${tableId}/records?page_size=100` +
+      (pageToken ? `&page_token=${pageToken}` : '');
+    const resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await resp.json();
+    if (data.code !== 0) throw new Error('Records failed: ' + data.msg);
+    all = all.concat(data.data?.items || []);
+    pageToken = data.data?.has_more ? data.data.page_token : null;
+  } while (pageToken);
+  return all;
+}
+
+function extractText(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val.trim();
+  if (Array.isArray(val)) return val.map(v => v.text || v.name || '').join('').trim();
+  if (typeof val === 'object') return (val.text || val.name || '').trim();
+  return String(val).trim();
+}
+
+async function initFeishu() {
+  try {
+    feishuToken   = await getFeishuToken();
+    feishuAppToken = await getFeishuAppToken(feishuToken);
+
+    // Load employee mapping table: 打卡号 + Legal name + 飞书姓名
+    const empRecords = await fetchAllRecords(feishuToken, feishuAppToken, FEISHU_TABLE_EMP);
+    feishuNameToId = {};
+    empRecords.forEach(rec => {
+      const f = rec.fields;
+      const empId   = extractText(f['打卡号'] || f['打卡号码'] || f['工号']);
+      const feishuName = extractText(f['姓名']);
+      if (empId && feishuName) {
+        feishuNameToId[feishuName.toLowerCase()] = parseInt(empId);
+      }
+    });
+
+    document.getElementById('feishuBar').style.display = 'flex';
+    document.getElementById('feishuStatus').textContent =
+      `飞书已连接 ✓（已加载 ${Object.keys(feishuNameToId).length} 名员工映射）`;
+  } catch(e) {
+    console.warn('Feishu init failed:', e.message);
+  }
+}
+
+async function syncLeaveFromFeishu() {
+  const btn    = document.getElementById('feishuSyncBtn');
+  const result = document.getElementById('feishuSyncResult');
+  btn.disabled = true;
+  btn.textContent = '⏳ 同步中...';
+  result.textContent = '';
+
+  try {
+    feishuToken = await getFeishuToken();
+
+    // Get date range from current analysis
+    const dates = hoursRows.map(r => r['Date']).filter(Boolean).map(d => Math.floor(d));
+    const minD = Math.min(...dates);
+    const maxD = Math.max(...dates);
+
+    // Convert feishu date string "2026/01/02" or timestamp to Excel serial
+    function toSerial(val) {
+      if (!val) return null;
+      if (typeof val === 'number') {
+        return val > 1e10 ? val / 86400000 + 25569 : val;
+      }
+      if (typeof val === 'string') {
+        const d = new Date(val.replace(/\//g, '-'));
+        if (!isNaN(d)) return d.getTime() / 86400000 + 25569;
+      }
+      if (Array.isArray(val) && val[0]?.timestamp) {
+        return val[0].timestamp / 1000 / 86400 + 25569;
+      }
+      return null;
+    }
+
+    const leaveRecords = await fetchAllRecords(feishuToken, feishuAppToken, FEISHU_TABLE_LEAVE);
+
+    // Leave type mapping
+    const leaveTypeMap = {
+      '年假':'leave', '病假':'leave', '事假':'leave',
+      '婚假':'leave', '产假':'leave', '陪产假':'leave',
+      '丧假':'leave', '调休':'leave'
+    };
+
+    let matched = 0;
+    leaveRecords.forEach(rec => {
+      const f = rec.fields;
+      // Get employee feishu name from "Single Option" column
+      const feishuName = extractText(f['Single Option'] || f['姓名'] || f['员工']);
+      if (!feishuName) return;
+
+      // Look up employee ID via feishu name mapping
+      const empId = feishuNameToId[feishuName.toLowerCase()];
+      if (!empId) return;
+
+      // Parse dates
+      const leaveStart = toSerial(f['请假开始日期'] || f['开始日期']);
+      const leaveEnd   = toSerial(f['请假结束日期'] || f['结束日期']) || leaveStart;
+      if (!leaveStart) return;
+
+      // Get leave type
+      const leaveType = extractText(f['请假内容'] || f['假期类型'] || f['类型']);
+
+      // Check if this leave covers any day in our analysis range
+      if (leaveStart <= maxD && leaveEnd >= minD) {
+        // Find matching absent employee
+        const absent = absentData.find(e => e.id === empId);
+        if (absent) {
+          absentStatus[empId] = 'leave';
+          const sel = document.getElementById('astatus_' + empId);
+          if (sel) {
+            sel.value = 'leave';
+            sel.className = 'absent-status leave';
+            // Update tooltip with leave type
+            if (leaveType) sel.title = leaveType;
+          }
+          matched++;
+        }
+      }
+    });
+
+    result.textContent = `✓ 已自动标注 ${matched} 名请假员工`;
+    btn.textContent = '🔄 重新同步';
+  } catch(e) {
+    result.textContent = '❌ 同步失败: ' + e.message;
+    btn.textContent = '🔄 同步请假状态';
+    console.error(e);
+  }
+  btn.disabled = false;
+}
+
 // ── Date range display ────────────────────────────────────────────────────
 function showDateRange(rows) {
   const dates = rows.map(r => r['Date']).filter(Boolean).map(d => Math.floor(d)).filter(d => !isNaN(d));
@@ -1370,6 +1553,7 @@ function toggleTutorial() {
 }
 
 loadEmployeeFiles();
+initFeishu();
 </script>
 </body>
 </html>
