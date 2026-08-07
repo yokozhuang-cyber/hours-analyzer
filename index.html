@@ -504,7 +504,6 @@ function loadFallback() {
         [38,'CA','Shipping',false],
         [225,'CA','Unloading',false],
         [7,'CA','Unloading',false],
-        [168,'CA','Unloading',false],
         [56,'CA','Unloading',true],
         [60,'CA','Transfer',false],
         [190,'CA','Dispatch',false],
@@ -523,6 +522,7 @@ function loadFallback() {
         [48,'CA','Unloading',false],
         [122,'CA','Shipping',false],
         [46,'CA','Dispatch',false],
+        [234,'CA','Transfer',false],
         [141,'CA','Resource',false],
         [200,'CA','Shipping',false],
         [15,'CA','Unloading',true],
@@ -533,11 +533,11 @@ function loadFallback() {
         [176,'CA','Transfer',false],
         [41,'CA','Unloading',false],
         [151,'CA','Transfer',false],
+        [233,'CA','Transfer',false],
         [170,'CA','Unloading',false],
         [166,'CA','Transfer',false],
         [209,'CA','Dispatch',false],
         [21,'CA','Transfer',false],
-        [196,'CA','Shipping',false],
         [220,'CA','Accounting',false],
         [223,'CA','HR',false],
         [121,'CA','Dispatch',false],
@@ -560,7 +560,6 @@ function loadFallback() {
         [198,'CA','Dispatch',false],
         [133,'CA','HR',false],
         [3,'CA','Shipping',false],
-
         // CA - TechChain
         [1012,'CA','Drop-Shipp',false],
         [1040,'CA','Drop-Shipp',false],
@@ -572,7 +571,6 @@ function loadFallback() {
         [1027,'CA','Drop-Shipp',false],
         [1013,'CA','Drop-Shipp',false],
         [1008,'CA','Drop-Shipp',false],
-
     // NJ
     [38,'NJ','NJ-WH',false],
     [43,'NJ','NJ-WH',false],
@@ -595,6 +593,18 @@ function loadFallback() {
     [32,'NJ','NJ-WH',false],
     [13,'NJ','Management',true],
     [1,'NJ','NJ-Office',true],
+    // GA
+    [31,'GA','Receiving',false],
+    [9,'GA','Resource',true],
+    [30,'GA','Transfer',false],
+    [25,'GA','Shipping',false],
+    [27,'GA','Shipping',true],
+    [29,'GA','Transfer',false],
+    [19,'GA','Drop-Shipp',false],
+    // TX
+    [1,'TX','Receiving',false],
+    [10,'TX','Receiving',false],
+    [2,'TX','Receiving',false],
       ];
   raw.forEach(([id, entity, dept, salary]) => {
     const key = entity + '_' + id;
