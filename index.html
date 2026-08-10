@@ -1423,10 +1423,23 @@ function detectAbsent(rows, dateRange, mgMap = {}) {
   if (!dateRange) return;
   // Detect which sub-entities are in the uploaded file based on employee ID ranges
   const uploadedIds = rows.map(r => parseInt(r['Employee Number'])).filter(n => !isNaN(n));
-  const hasLinkW    = uploadedIds.some(id => id < 1000);
+  const hasLinkW     = uploadedIds.some(id => id < 1000);
   const hasTechChain = uploadedIds.some(id => id >= 1000);
 
   const presentIds = new Set(uploadedIds);
+
+  // Get all WEEKDAY dates in the data range (Mon-Fri only)
+  const allDates = [...new Set(rows.map(r => Math.floor(r['Date'])).filter(d => !isNaN(d)))];
+  const weekdayDates = allDates.filter(d => {
+    const dow = new Date((d - 25569) * 86400000).getUTCDay(); // 0=Sun, 6=Sat
+    return dow !== 0 && dow !== 6;
+  });
+
+  // If no weekday dates in data, skip absent detection
+  if (weekdayDates.length === 0) {
+    absentData = [];
+    return;
+  }
 
   // Only check employees from sub-entities that are represented in the upload
   const allEmps = Object.entries(EMP_DATA)
@@ -1434,13 +1447,24 @@ function detectAbsent(rows, dateRange, mgMap = {}) {
       if (!key.startsWith(selectedEntity + '_')) return false;
       if (v.salary) return false;
       const id = parseInt(key.split('_')[1]);
-      if (id >= 1000 && !hasTechChain) return false;  // TechChain not uploaded
-      if (id < 1000 && !hasLinkW) return false;        // LinkW not uploaded
+      if (id >= 1000 && !hasTechChain) return false;
+      if (id < 1000 && !hasLinkW) return false;
       return true;
     })
     .map(([key, v]) => ({ id: parseInt(key.split('_')[1]), ...v }));
 
-  absentData = allEmps.filter(e => !presentIds.has(e.id));
+  // Only flag absent if employee has NO records on ANY weekday in range
+  const weekdayPresentIds = new Set(
+    rows
+      .filter(r => {
+        const d = Math.floor(r['Date']);
+        const dow = new Date((d - 25569) * 86400000).getUTCDay();
+        return dow !== 0 && dow !== 6;
+      })
+      .map(r => parseInt(r['Employee Number']))
+  );
+
+  absentData = allEmps.filter(e => !weekdayPresentIds.has(e.id));
   absentStatus = {};
 
   const tbAbsent = document.getElementById('tbAbsent');
