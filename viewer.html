@@ -366,16 +366,28 @@ function sortTable(tbId, colIdx, thEl) {
 
 async function loadReport() {
   const params = new URLSearchParams(window.location.search);
-  const binId = params.get('bin');
-  if (!binId) { showError(); return; }
+  // Support both old ?bin= format and new ?url= format
+  const rawUrl = params.get('url');
+  const binId  = params.get('bin');
+  if (!rawUrl && !binId) { showError(); return; }
 
   try {
-    const resp = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
-      headers: { 'X-Master-Key': JSONBIN_KEY }
-    });
-    if (!resp.ok) throw new Error('Fetch failed');
-    const data = await resp.json();
-    const r = data.record;
+    let r;
+    if (rawUrl) {
+      // New GitHub raw URL format
+      const resp = await fetch(decodeURIComponent(rawUrl));
+      if (!resp.ok) throw new Error('Fetch failed');
+      r = await resp.json();
+    } else {
+      // Legacy JSONBin format
+      const JSONBIN_KEY = '$2a$10$/167sSdCN2HNTpvwANPiAOAtW2BLG95kixUBMuJJsjj2Gg8l7ScK2';
+      const resp = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
+        headers: { 'X-Master-Key': JSONBIN_KEY }
+      });
+      if (!resp.ok) throw new Error('Fetch failed');
+      const data = await resp.json();
+      r = data.record;
+    }
 
     // Meta
     const d = new Date(r.generatedAt);
