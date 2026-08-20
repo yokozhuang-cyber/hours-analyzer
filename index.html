@@ -1124,8 +1124,17 @@ function printAllDepts() {
 }
 
 // ── Share via JSONBin ─────────────────────────────────────────────────────
-const JSONBIN_KEY = '$2a$10$/167sSdCN2HNTpvwANPiAOAtW2BLG95kixUBMuJJsjj2Gg8l7ScK2';
-const JSONBIN_API = 'https://api.jsonbin.io/v3/b';
+const GH_REPO  = 'yokozhuang-cyber/hours-analyzer';
+const GH_API   = 'https://api.github.com';
+
+function getGHToken() {
+  let token = localStorage.getItem('gh_token');
+  if (!token) {
+    token = prompt('请输入 GitHub Token（只需输入一次，会自动保存）:');
+    if (token) localStorage.setItem('gh_token', token.trim());
+  }
+  return token ? token.trim() : null;
+}
 let currentBinId = null;
 
 async function generateShareLink() {
@@ -1168,29 +1177,65 @@ async function generateShareLink() {
   };
 
   try {
-    const resp = await fetch(JSONBIN_API, {
-      method: 'POST',
+    // Generate unique filename based on timestamp
+    const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    const filename = `reports/report-${ts}.json`;
+    const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+
+    const GH_TOKEN = getGHToken();
+    if (!GH_TOKEN) { throw new Error('未提供 GitHub Token'); }
+
+    // Check if file exists (to get SHA)
+    let sha = null;
+    try {
+      const check = await fetch(`${GH_API}/repos/${GH_REPO}/contents/${filename}`, {
+        headers: { 'Authorization': 'token ' + GH_TOKEN, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (check.ok) { const d = await check.json(); sha = d.sha; }
+    } catch(e) {}
+
+    const body = { message: 'Add report ' + ts, content: contentB64 };
+    if (sha) body.sha = sha;
+
+    const resp = await fetch(`${GH_API}/repos/${GH_REPO}/contents/${filename}`, {
+      method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Name': 'hours-report-' + new Date().toISOString().slice(0,10),
-        'X-Bin-Private': 'false'
+        'Authorization': 'token ' + GH_TOKEN,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(body)
     });
-    const data = await resp.json();
-    if (!data.metadata?.id) throw new Error('No bin ID returned');
-    currentBinId = data.metadata.id;
 
-    // Build viewer URL — points to the GitHub Pages viewer
+    if (!resp.ok) throw new Error('GitHub upload failed: ' + resp.status);
+
+    // Build viewer URL using raw GitHub content
+    const rawUrl = encodeURIComponent(`https://raw.githubusercontent.com/${GH_REPO}/main/${filename}`);
     const viewerBase = window.location.origin + window.location.pathname.replace('index.html','');
-    const shareUrl = viewerBase + 'viewer.html?bin=' + currentBinId;
+    const shareUrl = viewerBase + 'viewer.html?url=' + rawUrl;
 
+    currentBinId = filename;
     document.getElementById('shareLinkInput').value = shareUrl;
     document.getElementById('shareBar').classList.add('show');
-    document.getElementById('shareStatus').textContent = '✓ 链接有效期永久，可直接发给主管';
+    document.getElementById('shareStatus').textContent = '✓ 链接永久有效，可直接发给主管';
     btn.textContent = '🔗 重新生成';
     btn.disabled = false;
+
+    // Save to localStorage history
+    const stored = JSON.parse(localStorage.getItem('isolved_reports') || '[]');
+    stored.push({
+      binId: shareUrl,
+      entity: selectedEntity,
+      dateRange: document.getElementById('dateRangePill')?.textContent || '',
+      date: new Date().toISOString().slice(0,10),
+      savedAt: new Date().toISOString(),
+      error: parsedData.error.length,
+      ot: parsedData.ot.length,
+      dt: parsedData.dt.length
+    });
+    if (stored.length > 50) stored.splice(0, stored.length - 50);
+    localStorage.setItem('isolved_reports', JSON.stringify(stored));
+
   } catch(e) {
     document.getElementById('shareStatus').textContent = '❌ 生成失败: ' + e.message;
     btn.textContent = '🔗 生成分享链接';
@@ -1534,38 +1579,27 @@ function renderHistoryList() {
     list.innerHTML = '<div class="history-empty">暂无历史记录</div>';
     return;
   }
-  const viewerBase = window.location.origin + window.location.pathname.replace('index.html','').replace('index','');
-  list.innerHTML = stored.slice().reverse().map(r => `
-    <div class="history-item" onclick="window.open('${viewerBase}viewer.html?bin=${r.binId}','_blank')">
+  list.innerHTML = stored.slice().reverse().map(r => {
+    const hasLink = r.binId && r.binId.startsWith('http');
+    const clickable = hasLink ? `onclick="window.open('${r.binId}','_blank')"` : '';
+    const arrow = hasLink ? '🔗 →' : '（未生成链接）';
+    return `<div class="history-item" ${clickable} style="${hasLink ? 'cursor:pointer' : 'cursor:default;opacity:.7'}">
       <div>
         <div class="history-item-range">${r.entity} &nbsp;|&nbsp; ${r.dateRange || r.date}</div>
         <div class="history-item-date">${new Date(r.savedAt).toLocaleString('zh-CN')}</div>
       </div>
-      <div class="history-item-stats">⚠${r.error} &nbsp;OT ${r.ot} &nbsp;DT ${r.dt} &nbsp;→</div>
-    </div>`).join('');
+      <div class="history-item-stats">⚠${r.error} OT ${r.ot} DT ${r.dt} &nbsp;${arrow}</div>
+    </div>`;
+  }).join('');
 }
 
 async function saveToHistory(payload, dateLabel) {
+  // History is now saved in localStorage by generateShareLink when user clicks share
+  // Auto-save a local-only entry so history panel still works without sharing
   try {
-    // Save to JSONBin for sharing
-    const resp = await fetch('https://api.jsonbin.io/v3/b', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Name': 'hours-report-' + dateLabel,
-        'X-Bin-Private': 'false'
-      },
-      body: JSON.stringify(payload)
-    });
-    const data = await resp.json();
-    const binId = data.metadata?.id;
-    if (!binId) return;
-
-    // Save reference to localStorage
     const stored = JSON.parse(localStorage.getItem('isolved_reports') || '[]');
     stored.push({
-      binId,
+      binId: null,
       entity: payload.entity,
       dateRange: payload.dateRange,
       date: new Date().toISOString().slice(0,10),
@@ -1574,7 +1608,6 @@ async function saveToHistory(payload, dateLabel) {
       ot: payload.summary.ot,
       dt: payload.summary.dt
     });
-    // Keep last 50
     if (stored.length > 50) stored.splice(0, stored.length - 50);
     localStorage.setItem('isolved_reports', JSON.stringify(stored));
   } catch(e) { console.warn('History save failed', e); }
