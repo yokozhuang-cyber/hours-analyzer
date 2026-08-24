@@ -757,27 +757,30 @@ function runAnalysis() {
     const issueList = [];
 
     if (g.missingStart) issueList.push('缺少上班打卡');
-    if (g.missingEnd)   issueList.push('缺少下班打卡');
     if (g.shortRecord)    issueList.push('疑似漏打上班卡（单段不足1小时）');
     if (g.missedClockOut) issueList.push('疑似漏打下班卡（跨夜至次日6-10点）');
 
     if (!g.salary) {
       const sorted = [...g.records].sort((a,b) => a.start - b.start);
 
-      if (g.recordCount === 2 && sorted.length >= 1) {
-        // Gap between record 1 End and record 2 Start > 2h = missing lunch punch
-        const gapHours = (sorted[1]?.start - sorted[0].end) * 24;
-        if (sorted[1] && gapHours > 2) {
+      if (g.recordCount === 2 && sorted.length >= 2) {
+        // First check gap between record 1 End and record 2 Start
+        const gapHours = (sorted[1].start - sorted[0].end) * 24;
+        if (gapHours > 2) {
+          // Large gap = missing lunch punch (NOT missing clock-out)
           issueList.push(`疑似漏打午休打卡（两段间隔${gapHours.toFixed(1)}小时）`);
-        } else if (sorted[1]) {
-          // Gap normal — check if record 2 has no end (missing clock-out)
-          const rec2Hours = sorted[1].end ? (sorted[1].end - sorted[1].start) * 24 : -1;
-          if (rec2Hours < 0) {
+        } else {
+          // Normal gap — now check if record 2 End is missing
+          if (g.missingEnd) {
             issueList.push('缺少下班打卡');
-          } else if (rec2Hours < 0.1) {
-            issueList.push('疑似漏打下班卡（下午段工时为0）');
+          } else {
+            const rec2Hours = (sorted[1].end - sorted[1].start) * 24;
+            if (rec2Hours < 0.1) issueList.push('疑似漏打下班卡（下午段工时为0）');
           }
         }
+      } else if (g.recordCount === 2 && sorted.length < 2) {
+        // Records exist but no valid start/end pairs
+        if (g.missingEnd) issueList.push('缺少下班打卡');
       } else if (g.recordCount === 1 && sorted.length === 1) {
         // Only 1 record - determine what's missing based on end time
         const endHour = (sorted[0].end - Math.floor(sorted[0].end)) * 24;
