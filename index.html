@@ -757,16 +757,38 @@ function runAnalysis() {
     const expectedRecords = g.salary ? 1 : 2;
     const issueList = [];
 
-    // Always check missing punches regardless of record count
     if (g.missingStart) issueList.push('缺少上班打卡');
     if (g.missingEnd)   issueList.push('缺少下班打卡');
     if (g.shortRecord)    issueList.push('疑似漏打上班卡（单段不足1小时）');
     if (g.missedClockOut) issueList.push('疑似漏打下班卡（跨夜至次日6-10点）');
-    // Check record count
-    if (g.recordCount < expectedRecords) {
-      issueList.push(`打卡不足（应${expectedRecords}条，实际${g.recordCount}条）`);
-    } else if (g.recordCount > expectedRecords) {
-      issueList.push(`打卡异常（应${expectedRecords}条，实际${g.recordCount}条）`);
+
+    if (!g.salary) {
+      const sorted = [...g.records].sort((a,b) => a.start - b.start);
+
+      if (g.recordCount === 2 && sorted.length === 2) {
+        // Check gap between record 1 End and record 2 Start
+        const gapHours = (sorted[1].start - sorted[0].end) * 24;
+        if (gapHours > 2) {
+          issueList.push(`疑似漏打午休打卡（两段间隔${gapHours.toFixed(1)}小时）`);
+        }
+        // Check if record 2 has 0 hours (missing clock-out)
+        const rec2Hours = (sorted[1].end - sorted[1].start) * 24;
+        if (rec2Hours < 0.1 && sorted[1].end) {
+          issueList.push('疑似漏打下班卡（下午段工时为0）');
+        }
+      } else if (g.recordCount === 1 && sorted.length === 1) {
+        // Only 1 record - determine what's missing based on end time
+        const endHour = (sorted[0].end - Math.floor(sorted[0].end)) * 24;
+        const workedHours = (sorted[0].end - sorted[0].start) * 24;
+        if (workedHours < 5 && endHour >= 11 && endHour <= 16) {
+          // Ended around noon/early afternoon - likely missing afternoon session
+          issueList.push('疑似漏打午休打卡（仅有上午段）');
+        } else if (!g.missingStart && !g.missingEnd) {
+          issueList.push('打卡不足（应2条，实际1条）');
+        }
+      } else if (g.recordCount > expectedRecords) {
+        issueList.push(`打卡异常（应${expectedRecords}条，实际${g.recordCount}条）`);
+      }
     }
 
     if (issueList.length > 0) parsedData.error.push({ ...g, _issue: issueList.join(' / ') });
