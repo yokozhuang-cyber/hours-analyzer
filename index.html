@@ -203,6 +203,14 @@ tr:last-child td{border-bottom:none;}
   .feishu-sync-btn{font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:11px;padding:7px 16px;border-radius:6px;cursor:pointer;border:1px solid #44cc77;color:#44cc77;background:#f0fff0;letter-spacing:1px;text-transform:uppercase;transition:all .15s;}
   .feishu-sync-btn:hover{background:#e0ffe0;}
   .feishu-sync-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  .date-filter-bar{max-width:1100px;margin:0 auto 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .date-filter-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+  .date-btn{font-family:'JetBrains Mono','Noto Sans SC',monospace;font-size:11px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid #f0b8d0;color:#b07090;background:#fff;transition:all .15s;letter-spacing:1px;}
+  .date-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .date-btn.active{border-color:var(--accent);color:#fff;background:var(--accent);font-weight:700;}
+  .date-btn.all{border-color:#d0a0c0;color:#9060a0;background:#fff5f8;}
+  .date-btn.all.active{background:var(--accent);color:#fff;border-color:var(--accent);}
 </style>
 </head>
 <body>
@@ -330,6 +338,14 @@ tr:last-child td{border-bottom:none;}
       <button class="share-copy-btn" id="shareCopyBtn" onclick="copyShareLink()">复制链接</button>
     </div>
     <div class="share-status" id="shareStatus"></div>
+  </div>
+
+
+  <!-- Date filter bar -->
+  <div class="date-filter-bar" id="dateFilterBar" style="display:none;">
+    <span class="date-filter-label">日期筛选:</span>
+    <button class="date-btn all active" onclick="filterByDate('all')">全部</button>
+    <span id="dateBtns"></span>
   </div>
 
   <button class="export-all" onclick="exportAll()">⬇ 导出完整分析报告 (Excel)</button>
@@ -1022,6 +1038,7 @@ function runAnalysis() {
   document.getElementById('shareBtn').disabled = false;
   renderCharts();
   buildPdfButtons();
+  buildDateFilter();
   document.getElementById('results').scrollIntoView({ behavior:'smooth' });
 
   // Auto-save to history
@@ -1477,6 +1494,58 @@ async function syncLeaveFromFeishu() {
     console.error(e);
   }
   btn.disabled = false;
+}
+
+// ── Date filter ───────────────────────────────────────────────────────────
+let currentDateFilter = 'all';
+
+function buildDateFilter() {
+  // Get all unique dates from all sections
+  const allRows = [...parsedData.error, ...parsedData.ot, ...parsedData.dt, ...parsedData.compliance];
+  const dates = [...new Set(
+    allRows.map(r => r.date ? fmtDate(r.date) : null).filter(Boolean)
+  )].sort();
+
+  if (dates.length <= 1) {
+    document.getElementById('dateFilterBar').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('dateFilterBar').style.display = 'flex';
+  document.getElementById('dateBtns').innerHTML = dates.map(d =>
+    `<button class="date-btn" onclick="filterByDate('${d}')">${d}</button>`
+  ).join('');
+}
+
+function filterByDate(date) {
+  currentDateFilter = date;
+
+  // Update button states
+  document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  // Filter all table rows
+  ['tbErr','tbOT','tbDT','tbComp','tbAbsent'].forEach(tbId => {
+    const tbody = document.getElementById(tbId);
+    if (!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
+    rows.forEach(tr => {
+      if (tr.querySelector('.empty')) return;
+      if (date === 'all') {
+        tr.style.display = '';
+        return;
+      }
+      // Find date cell (4th td for most tables)
+      const tds = tr.querySelectorAll('td');
+      let rowDate = '';
+      tds.forEach(td => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(td.textContent.trim())) {
+          rowDate = td.textContent.trim();
+        }
+      });
+      tr.style.display = (rowDate === date || rowDate === '') ? '' : 'none';
+    });
+  });
 }
 
 // ── Date range display ────────────────────────────────────────────────────
