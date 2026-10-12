@@ -94,6 +94,12 @@ tr:last-child td{border-bottom:none;}
   .status-pill.special{background:#15081f;color:#c47aff;border:1px solid #c47aff;}
 
   .comp-row td{background:#1a0f00;}
+
+  .date-filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px;}
+  .date-filter-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+  .date-btn{font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:var(--surface);transition:all .15s;letter-spacing:1px;}
+  .date-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .date-btn.active{border-color:var(--accent);color:#040e1e;background:var(--accent);font-weight:700;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -171,6 +177,14 @@ tr:last-child td{border-bottom:none;}
         <table><thead><tr><th>工号</th><th>姓名</th><th>Entity</th><th>部门</th><th>日期</th><th>警告类型</th><th>涉及工时</th><th>Manager</th></tr></thead>
         <tbody id="tbComp"></tbody></table>
       </div>
+    </div>
+
+
+    <!-- Date filter -->
+    <div class="date-filter-bar" id="dateFilterBar" style="display:none;">
+      <span class="date-filter-label">日期筛选:</span>
+      <button class="date-btn active" onclick="filterByDate('all', this)">全部</button>
+      <span id="dateBtns"></span>
     </div>
 
     <!-- Absent -->
@@ -281,6 +295,38 @@ function renderCharts() {
 }
 
 
+
+// ── Date filter ───────────────────────────────────────────────────────────
+function buildDateFilter(r) {
+  const allRows = [...(r.error||[]), ...(r.ot||[]), ...(r.dt||[]), ...(r.compliance||[])];
+  const dates = [...new Set(allRows.map(x => x['日期']).filter(Boolean))].sort();
+  if (dates.length <= 1) return;
+
+  document.getElementById('dateFilterBar').style.display = 'flex';
+  document.getElementById('dateBtns').innerHTML = dates.map(d =>
+    `<button class="date-btn" onclick="filterByDate('${d}', this)">${d}</button>`
+  ).join('');
+}
+
+function filterByDate(date, btn) {
+  document.querySelectorAll('.date-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  ['tbErr','tbOT','tbDT','tbComp'].forEach(tbId => {
+    const tbody = document.getElementById(tbId);
+    if (!tbody) return;
+    tbody.querySelectorAll('tr').forEach(tr => {
+      if (tr.querySelector('.empty')) return;
+      if (date === 'all') { tr.style.display = ''; return; }
+      const tds = tr.querySelectorAll('td');
+      let rowDate = '';
+      tds.forEach(td => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(td.textContent.trim())) rowDate = td.textContent.trim();
+      });
+      tr.style.display = (rowDate === date || rowDate === '') ? '' : 'none';
+    });
+  });
+}
 // ── Filter & Sort ─────────────────────────────────────────────────────────
 let sortState = { table: null, col: null, dir: 'asc' };
 
@@ -495,6 +541,7 @@ async function loadReport() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('reportContent').style.display = 'block';
     populateFilters(r);
+    buildDateFilter(r);
     renderCharts();
   } catch(e) {
     showError();
